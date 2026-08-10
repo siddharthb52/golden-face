@@ -19,6 +19,7 @@
     --terracotta: #C2703A;
     --purple: #8B5FA8;
     --shadow: 0 1px 2px rgba(31,42,34,0.06), 0 4px 14px rgba(31,42,34,0.07);
+    --shadow-hover: 0 2px 4px rgba(31,42,34,0.09), 0 8px 20px rgba(31,42,34,0.11);
     --radius-card: 12px;
     --radius-pill: 999px;
     --radius-bar: 4px;
@@ -44,6 +45,7 @@
       --terracotta: #D68F5C;
       --purple: #B08FD1;
       --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.4);
+      --shadow-hover: 0 2px 4px rgba(0,0,0,0.42), 0 10px 24px rgba(0,0,0,0.48);
     }
   }
   :root[data-theme="dark"] {
@@ -52,6 +54,7 @@
     --forest: #6FA377; --forest-deep: #4C7A55; --gold: #D9AE55; --gold-soft: #3A2F17; --gold-ink: #E9CE93;
     --blue: #6FA0D6; --terracotta: #D68F5C; --purple: #B08FD1;
     --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.4);
+    --shadow-hover: 0 2px 4px rgba(0,0,0,0.42), 0 10px 24px rgba(0,0,0,0.48);
   }
   :root[data-theme="light"] {
     --bg: #F5F7F0; --surface: #FBFAF5; --surface-alt: #EFF2E8; --border: #DCE3D3;
@@ -149,6 +152,11 @@
     padding: 16px 18px;
     box-shadow: var(--shadow);
     border-left: 3px solid var(--tile-color, var(--forest));
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .kpi-tile:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-hover);
   }
   .kpi-tile .kpi-label {
     font-size: 0.72rem;
@@ -401,6 +409,12 @@ const KPI_CATEGORY_SUB = {
   reimbursement: "Materials & supplies",
   advance: "Paid ahead of an expense",
 };
+const KPI_CATEGORY_LABEL_PLURAL = {
+  wage: "Wages",
+  bonus: "Bonuses",
+  reimbursement: "Reimbursements",
+  advance: "Advances",
+};
 
 (function renderKPIs() {
   const total = PAYMENTS.reduce((s, p) => s + p.amount, 0);
@@ -411,7 +425,7 @@ const KPI_CATEGORY_SUB = {
     { label: "Total Paid", value: fmtINR(total), sub: `${PAYMENTS.length} payments · ${employees.length} employees`, color: "var(--gold)" },
     ...Object.keys(CATEGORY_LABEL)
       .filter(c => byCat[c] > 0)
-      .map(c => ({ label: CATEGORY_LABEL[c] + "s", value: fmtINR(byCat[c]), sub: KPI_CATEGORY_SUB[c], color: CATEGORY_COLOR[c] })),
+      .map(c => ({ label: KPI_CATEGORY_LABEL_PLURAL[c], value: fmtINR(byCat[c]), sub: KPI_CATEGORY_SUB[c], color: CATEGORY_COLOR[c] })),
   ];
   document.getElementById("kpi-row").innerHTML = tiles.map(t => `
     <div class="kpi-tile" style="--tile-color:${t.color}">
