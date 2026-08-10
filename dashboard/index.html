@@ -126,6 +126,15 @@
     color: var(--ink-muted);
     margin: 0 0 12px;
   }
+  .chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .chart-head .section-label { margin: 0; }
 
   /* KPI row */
   .kpi-row {
@@ -310,7 +319,13 @@
   <section class="kpi-row" id="kpi-row" aria-label="Summary totals"></section>
 
   <section class="panel">
-    <p class="section-label">Weekly Spend by Employee</p>
+    <div class="chart-head">
+      <p class="section-label" id="weekly-chart-title">Weekly Spend by Employee</p>
+      <div class="filter-group" id="weekly-chart-toggle">
+        <button class="chip active" data-mode="employee">By Employee</button>
+        <button class="chip" data-mode="category">By Category</button>
+      </div>
+    </div>
     <div class="chart-wrap">
       <svg class="chart-svg" id="weekly-chart" viewBox="0 0 1000 300" preserveAspectRatio="xMidYMid meet"></svg>
       <div class="tooltip" id="chart-tooltip"></div>
@@ -414,21 +429,41 @@ function isoWeekStart(dateStr) {
   return d.toISOString().slice(0, 10);
 }
 
-(function renderWeeklyChart() {
+const WEEKLY_CHART_MODES = {
+  employee: {
+    title: "Weekly Spend by Employee",
+    groupKey: p => p.name,
+    seriesKeys: () => employees.map(e => e.name),
+    color: key => EMPLOYEE_COLOR[key],
+    label: key => key,
+  },
+  category: {
+    title: "Weekly Spend by Category",
+    groupKey: p => p.payment_category,
+    seriesKeys: () => Object.keys(CATEGORY_LABEL).filter(c => PAYMENTS.some(p => p.payment_category === c)),
+    color: key => CATEGORY_COLOR[key],
+    label: key => CATEGORY_LABEL[key],
+  },
+};
+let weeklyChartMode = "employee";
+
+function renderWeeklyChart() {
+  const mode = WEEKLY_CHART_MODES[weeklyChartMode];
   const weeks = {};
   PAYMENTS.forEach(p => {
     const wk = isoWeekStart(p.date);
+    const key = mode.groupKey(p);
     weeks[wk] = weeks[wk] || {};
-    weeks[wk][p.name] = (weeks[wk][p.name] || 0) + p.amount;
+    weeks[wk][key] = (weeks[wk][key] || 0) + p.amount;
   });
   const weekKeys = Object.keys(weeks).sort();
-  const names = employees.map(e => e.name);
-  const max = Math.max(1, ...weekKeys.flatMap(w => names.map(n => weeks[w][n] || 0)));
+  const seriesKeys = mode.seriesKeys();
+  const max = Math.max(1, ...weekKeys.flatMap(w => seriesKeys.map(k => weeks[w][k] || 0)));
 
   const W = 1000, H = 300, padL = 46, padB = 34, padT = 12, padR = 8;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const groupW = plotW / weekKeys.length;
-  const barGap = 2, barW = Math.max(4, (groupW - 14 - barGap * (names.length - 1)) / names.length);
+  const barGap = 2, barW = Math.max(4, (groupW - 14 - barGap * (seriesKeys.length - 1)) / seriesKeys.length);
 
   const niceMax = Math.ceil(max / 1000) * 1000;
   const gridSteps = 4;
@@ -443,12 +478,12 @@ function isoWeekStart(dateStr) {
   weekKeys.forEach((wk, wi) => {
     const gx = padL + wi * groupW + 7;
     svg += `<text class="axis-label" x="${gx + (groupW - 14) / 2}" y="${H - padB + 16}" text-anchor="middle">${fmtDateShort(wk)}</text>`;
-    names.forEach((name, ni) => {
-      const val = weeks[wk][name] || 0;
+    seriesKeys.forEach((key, ni) => {
+      const val = weeks[wk][key] || 0;
       const bh = (val / niceMax) * plotH;
       const bx = gx + ni * (barW + barGap);
       const by = padT + plotH - bh;
-      svg += `<rect class="bar-hover" x="${bx}" y="${by}" width="${barW}" height="${Math.max(bh,0)}" rx="4" ry="4" fill="${EMPLOYEE_COLOR[name]}" data-week="${wk}" data-name="${name}" data-val="${val}"></rect>`;
+      svg += `<rect class="bar-hover" x="${bx}" y="${by}" width="${barW}" height="${Math.max(bh,0)}" rx="4" ry="4" fill="${mode.color(key)}" data-week="${wk}" data-name="${mode.label(key)}" data-val="${val}"></rect>`;
     });
   });
 
@@ -470,10 +505,23 @@ function isoWeekStart(dateStr) {
     rect.addEventListener("mouseleave", () => tooltip.classList.remove("visible"));
   });
 
-  document.getElementById("weekly-legend").innerHTML = names.map(n => `
-    <span class="legend-item"><span class="legend-dot" style="background:${EMPLOYEE_COLOR[n]}"></span>${n}</span>
+  document.getElementById("weekly-legend").innerHTML = seriesKeys.map(key => `
+    <span class="legend-item"><span class="legend-dot" style="background:${mode.color(key)}"></span>${mode.label(key)}</span>
   `).join("");
-})();
+
+  document.getElementById("weekly-chart-title").textContent = mode.title;
+}
+
+document.querySelectorAll("#weekly-chart-toggle .chip").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.mode === weeklyChartMode) return;
+    weeklyChartMode = btn.dataset.mode;
+    document.querySelectorAll("#weekly-chart-toggle .chip").forEach(b => b.classList.toggle("active", b === btn));
+    renderWeeklyChart();
+  });
+});
+
+renderWeeklyChart();
 
 // ---------- employee cards ----------
 (function renderEmployeeCards() {
