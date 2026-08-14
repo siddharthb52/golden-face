@@ -201,6 +201,10 @@
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-muted); }
   .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 
+  /* chart mode swap fade */
+  .chart-svg, .legend, #weekly-chart-title { transition: opacity 0.15s ease; }
+  .chart-fading { opacity: 0; }
+
   /* chart */
   .chart-wrap { position: relative; }
   .chart-svg { width: 100%; height: auto; overflow: visible; }
@@ -526,12 +530,30 @@ function renderWeeklyChart() {
   document.getElementById("weekly-chart-title").textContent = mode.title;
 }
 
+let isChartTransitioning = false;
+
 document.querySelectorAll("#weekly-chart-toggle .chip").forEach(btn => {
   btn.addEventListener("click", () => {
-    if (btn.dataset.mode === weeklyChartMode) return;
-    weeklyChartMode = btn.dataset.mode;
+    if (btn.dataset.mode === weeklyChartMode || isChartTransitioning) return;
+    isChartTransitioning = true;
     document.querySelectorAll("#weekly-chart-toggle .chip").forEach(b => b.classList.toggle("active", b === btn));
-    renderWeeklyChart();
+
+    // Employee mode and category mode have different bar counts and colors,
+    // so morphing between them isn't meaningful -- cross-fade the whole
+    // chart out, swap the underlying data, then fade the new one in.
+    const fadeEls = [
+      document.getElementById("weekly-chart"),
+      document.getElementById("weekly-legend"),
+      document.getElementById("weekly-chart-title"),
+    ];
+    fadeEls.forEach(el => el.classList.add("chart-fading"));
+
+    setTimeout(() => {
+      weeklyChartMode = btn.dataset.mode;
+      renderWeeklyChart();
+      fadeEls.forEach(el => el.classList.remove("chart-fading"));
+      isChartTransitioning = false;
+    }, 150);
   });
 });
 
