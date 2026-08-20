@@ -1,6 +1,6 @@
 <!doctype html>
-<title>Golden Mouth — Payments Ledger</title>
-<meta name="description" content="Payments dashboard for the Golden Mouth forest &amp; garden preserve, built from WhatsApp payment extraction.">
+<title>Golden Face — Payments Ledger</title>
+<meta name="description" content="Payments dashboard for the Golden Face forest &amp; garden preserve, built from WhatsApp, bank statement, and receipt extraction.">
 <style>
   :root {
     --bg: #F5F7F0;
@@ -322,13 +322,33 @@
 <main>
   <header class="page-head">
     <div>
-      <h1 class="wordmark"><span class="golden">Golden</span> Mouth</h1>
+      <h1 class="wordmark"><span class="golden">Golden</span> Face</h1>
       <p class="subtitle">Forest &amp; Garden Preserve · Payments Ledger</p>
     </div>
     <div class="period-badge" id="period-badge">—</div>
   </header>
 
   <section class="kpi-row" id="kpi-row" aria-label="Summary totals"></section>
+
+  <section class="panel">
+    <p class="section-label">Recent Transactions (last 3 months)</p>
+    <div class="table-scroll">
+      <table class="ledger" id="recent-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>To</th>
+            <th>From</th>
+            <th>Source</th>
+            <th style="text-align:right">Amount</th>
+            <th>Proof</th>
+          </tr>
+        </thead>
+        <tbody id="recent-body"></tbody>
+      </table>
+      <div class="empty-state" id="recent-empty" hidden>No transactions in the last three months.</div>
+    </div>
+  </section>
 
   <section class="panel">
     <div class="chart-head">
@@ -351,7 +371,7 @@
       <div class="employee-cards" id="employee-cards"></div>
     </div>
     <div class="panel">
-      <p class="section-label">By Category</p>
+      <p class="section-label">Worker Payments by Category</p>
       <div class="donut-wrap">
         <svg width="150" height="150" viewBox="0 0 150 150" id="donut-svg"></svg>
         <div class="donut-legend" id="donut-legend"></div>
@@ -360,7 +380,7 @@
   </section>
 
   <section class="panel">
-    <p class="section-label">Payment Ledger</p>
+    <p class="section-label">Worker Payment History</p>
     <div class="filter-row">
       <div class="filter-group" id="employee-filters"></div>
       <div class="filter-group" id="category-filters"></div>
@@ -383,7 +403,7 @@
     </div>
   </section>
 
-  <footer class="page-foot" id="footer-note">Generated from sample WhatsApp exports.</footer>
+  <footer class="page-foot" id="footer-note">Generated from ledger data.</footer>
 </main>
 
 <script>
@@ -393,11 +413,26 @@ const PAYMENTS = /*__PAYMENTS_JSON__*/;
 const EMPLOYEE_COLOR = { Ramesh: "var(--forest)", Suresh: "var(--blue)", Lakshmi: "var(--terracotta)" };
 const CATEGORY_COLOR = { wage: "var(--forest)", bonus: "var(--gold)", reimbursement: "var(--blue)", advance: "var(--purple)" };
 const CATEGORY_LABEL = { wage: "Wage", bonus: "Bonus", reimbursement: "Reimbursement", advance: "Advance" };
+const SOURCE_LABEL = { whatsapp: "WhatsApp", bank_statement: "Bank Statement", receipt: "Receipt" };
+const TRANSACTION_TYPE_COLOR = { worker_payment: "var(--forest)", expense: "var(--terracotta)", income: "var(--blue)" };
 
 const employees = CONTACTS.filter(c => c.role === "employee");
+// Charts below (weekly spend, employee cards, category donut, the filterable
+// history table) are all scoped to worker payments only -- mixing wage/bonus
+// categories with expense categories like "supplies" or income categories
+// like "donation" in the same chart would compare unrelated things.
+const WORKER_PAYMENTS = PAYMENTS.filter(p => p.transaction_type === "worker_payment");
+
 const fmtINR = n => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const fmtDateShort = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+
+const NOW = new Date();
+const CURRENT_YEAR = NOW.getFullYear();
+const THREE_MONTHS_AGO = new Date(NOW);
+THREE_MONTHS_AGO.setMonth(THREE_MONTHS_AGO.getMonth() - 3);
+const RECENT_CUTOFF = THREE_MONTHS_AGO.toISOString().slice(0, 10);
+const isYTD = d => new Date(d + "T00:00:00").getFullYear() === CURRENT_YEAR;
 
 // ---------- period badge ----------
 (function renderPeriod() {
@@ -406,37 +441,57 @@ const fmtDateShort = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", 
   el.textContent = dates.length ? `${fmtDateShort(dates[0])} – ${fmtDate(dates[dates.length - 1])}` : "No data";
 })();
 
-// ---------- KPIs ----------
-const KPI_CATEGORY_SUB = {
-  wage: "Base weekly labor",
-  bonus: "Performance extras",
-  reimbursement: "Materials & supplies",
-  advance: "Paid ahead of an expense",
-};
-const KPI_CATEGORY_LABEL_PLURAL = {
-  wage: "Wages",
-  bonus: "Bonuses",
-  reimbursement: "Reimbursements",
-  advance: "Advances",
-};
+// ---------- summary totals (payments / expenses / balance) ----------
+function totalFor(transactionType, ytdOnly) {
+  return PAYMENTS
+    .filter(p => p.transaction_type === transactionType)
+    .filter(p => !ytdOnly || isYTD(p.date))
+    .reduce((s, p) => s + p.amount, 0);
+}
+// Balance starts from a zero opening balance: income in, worker payments and
+// expenses out.
+function balanceFor(ytdOnly) {
+  return totalFor("income", ytdOnly) - totalFor("expense", ytdOnly) - totalFor("worker_payment", ytdOnly);
+}
 
-(function renderKPIs() {
-  const total = PAYMENTS.reduce((s, p) => s + p.amount, 0);
-  const byCat = {};
-  PAYMENTS.forEach(p => { byCat[p.payment_category] = (byCat[p.payment_category] || 0) + p.amount; });
-
+(function renderSummary() {
   const tiles = [
-    { label: "Total Paid", value: fmtINR(total), sub: `${PAYMENTS.length} payments · ${employees.length} employees`, color: "var(--gold)" },
-    ...Object.keys(CATEGORY_LABEL)
-      .filter(c => byCat[c] > 0)
-      .map(c => ({ label: KPI_CATEGORY_LABEL_PLURAL[c], value: fmtINR(byCat[c]), sub: KPI_CATEGORY_SUB[c], color: CATEGORY_COLOR[c] })),
+    { label: "Total Payments", color: "var(--forest)", inception: totalFor("worker_payment", false), ytd: totalFor("worker_payment", true) },
+    { label: "Total Expenses", color: "var(--terracotta)", inception: totalFor("expense", false), ytd: totalFor("expense", true) },
+    { label: "Current Balance", color: "var(--gold)", inception: balanceFor(false), ytd: balanceFor(true) },
   ];
   document.getElementById("kpi-row").innerHTML = tiles.map(t => `
     <div class="kpi-tile" style="--tile-color:${t.color}">
-      <p class="kpi-label">${t.label}</p>
-      <p class="kpi-value">${t.value}</p>
-      <p class="kpi-sub">${t.sub}</p>
+      <p class="kpi-label">${t.label} · Since Inception</p>
+      <p class="kpi-value">${fmtINR(t.inception)}</p>
+      <p class="kpi-sub">Year to date: ${fmtINR(t.ytd)}</p>
     </div>`).join("");
+})();
+
+// ---------- recent transactions (last 3 months, all sources) ----------
+function renderProofCell(p) {
+  if (!p.evidence_thumbnail) return '<span style="color:var(--ink-faint)">–</span>';
+  return `<span title="${p.evidence_thumbnail.replace(/"/g, "&quot;")}" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:var(--surface-alt);border:1px solid var(--border);">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" stroke-width="2"><path d="M6 2h9l3 3v17H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+  </span>`;
+}
+
+(function renderRecentTransactions() {
+  const rows = PAYMENTS
+    .filter(p => p.date >= RECENT_CUTOFF)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+  document.getElementById("recent-empty").hidden = rows.length > 0;
+
+  document.getElementById("recent-body").innerHTML = rows.map(p => `
+    <tr>
+      <td class="cell-date">${fmtDate(p.date)}</td>
+      <td>${p.to}</td>
+      <td>${p.from}</td>
+      <td><span class="cat-pill" style="background:${TRANSACTION_TYPE_COLOR[p.transaction_type]}">${SOURCE_LABEL[p.source]}</span></td>
+      <td class="cell-amount">${fmtINR(p.amount)}</td>
+      <td>${renderProofCell(p)}</td>
+    </tr>`).join("");
 })();
 
 // ---------- weekly grouped bar chart ----------
@@ -450,15 +505,15 @@ function isoWeekStart(dateStr) {
 const WEEKLY_CHART_MODES = {
   employee: {
     title: "Weekly Spend by Employee",
-    groupKey: p => p.name,
+    groupKey: p => p.to,
     seriesKeys: () => employees.map(e => e.name),
     color: key => EMPLOYEE_COLOR[key],
     label: key => key,
   },
   category: {
     title: "Weekly Spend by Category",
-    groupKey: p => p.payment_category,
-    seriesKeys: () => Object.keys(CATEGORY_LABEL).filter(c => PAYMENTS.some(p => p.payment_category === c)),
+    groupKey: p => p.category,
+    seriesKeys: () => Object.keys(CATEGORY_LABEL).filter(c => WORKER_PAYMENTS.some(p => p.category === c)),
     color: key => CATEGORY_COLOR[key],
     label: key => CATEGORY_LABEL[key],
   },
@@ -468,7 +523,7 @@ let weeklyChartMode = "employee";
 function renderWeeklyChart() {
   const mode = WEEKLY_CHART_MODES[weeklyChartMode];
   const weeks = {};
-  PAYMENTS.forEach(p => {
+  WORKER_PAYMENTS.forEach(p => {
     const wk = isoWeekStart(p.date);
     const key = mode.groupKey(p);
     weeks[wk] = weeks[wk] || {};
@@ -562,7 +617,7 @@ renderWeeklyChart();
 // ---------- employee cards ----------
 (function renderEmployeeCards() {
   const html = employees.map(emp => {
-    const rows = PAYMENTS.filter(p => p.phone === emp.phone);
+    const rows = WORKER_PAYMENTS.filter(p => p.phone === emp.phone);
     const total = rows.reduce((s, p) => s + p.amount, 0);
     return `
       <div class="employee-card">
@@ -586,7 +641,7 @@ renderWeeklyChart();
 // ---------- category donut ----------
 (function renderDonut() {
   const totals = {};
-  PAYMENTS.forEach(p => { totals[p.payment_category] = (totals[p.payment_category] || 0) + p.amount; });
+  WORKER_PAYMENTS.forEach(p => { totals[p.category] = (totals[p.category] || 0) + p.amount; });
   const cats = Object.keys(CATEGORY_LABEL).filter(c => totals[c] > 0);
   const grand = cats.reduce((s, c) => s + totals[c], 0);
 
@@ -624,7 +679,7 @@ function renderFilters() {
     .concat(employees.map(e => `<button class="chip" data-emp="${e.name}">${e.name}</button>`)).join("");
   document.getElementById("employee-filters").innerHTML = empHTML;
 
-  const cats = Object.keys(CATEGORY_LABEL).filter(c => PAYMENTS.some(p => p.payment_category === c));
+  const cats = Object.keys(CATEGORY_LABEL).filter(c => WORKER_PAYMENTS.some(p => p.category === c));
   const catHTML = ['<button class="chip active gold-chip" data-cat="all">All categories</button>']
     .concat(cats.map(c => `<button class="chip" data-cat="${c}">${CATEGORY_LABEL[c]}</button>`)).join("");
   document.getElementById("category-filters").innerHTML = catHTML;
@@ -642,9 +697,9 @@ function renderFilters() {
 }
 
 function renderTable() {
-  const rows = PAYMENTS
-    .filter(p => activeEmployee === "all" || p.name === activeEmployee)
-    .filter(p => activeCategory === "all" || p.payment_category === activeCategory)
+  const rows = WORKER_PAYMENTS
+    .filter(p => activeEmployee === "all" || p.to === activeEmployee)
+    .filter(p => activeCategory === "all" || p.category === activeCategory)
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
 
   document.getElementById("empty-state").hidden = rows.length > 0;
@@ -652,8 +707,8 @@ function renderTable() {
   document.getElementById("ledger-body").innerHTML = rows.map(p => `
     <tr>
       <td class="cell-date">${fmtDate(p.date)}</td>
-      <td><span class="cell-employee"><span class="employee-dot" style="background:${EMPLOYEE_COLOR[p.name]}"></span>${p.name}</span></td>
-      <td><span class="cat-pill" style="background:${CATEGORY_COLOR[p.payment_category]}">${CATEGORY_LABEL[p.payment_category]}</span></td>
+      <td><span class="cell-employee"><span class="employee-dot" style="background:${EMPLOYEE_COLOR[p.to]}"></span>${p.to}</span></td>
+      <td><span class="cat-pill" style="background:${CATEGORY_COLOR[p.category]}">${CATEGORY_LABEL[p.category]}</span></td>
       <td class="cell-amount">${fmtINR(p.amount)}</td>
       <td class="cell-note">${p.description}</td>
       <td class="cell-source" title="${p.source_excerpt.replace(/"/g, "&quot;")}">“${p.source_excerpt}”</td>
@@ -664,5 +719,6 @@ renderFilters();
 renderTable();
 
 document.getElementById("footer-note").textContent =
-  `Generated from ${new Set(PAYMENTS.map(p => p.chat_file)).size} sample WhatsApp exports · ${PAYMENTS.length} payment events logged.`;
+  `Generated from ${new Set(PAYMENTS.map(p => p.source_file)).size} source document(s) `
+  + `across ${new Set(PAYMENTS.map(p => p.source)).size} source type(s) · ${PAYMENTS.length} transactions logged.`;
 </script>

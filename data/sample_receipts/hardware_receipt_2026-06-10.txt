@@ -1,0 +1,8 @@
+# Placeholder receipt -- NOT real OCR/vision output on a photographed
+# receipt. Exists only to validate that record_payment() handles
+# transaction_type=expense with source=receipt.
+vendor: Sri Ganesh Hardware
+date: 2026-06-10
+amount: 4500
+category: supplies
+item: Fencing wire and posts for north boundary

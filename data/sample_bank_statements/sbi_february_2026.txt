@@ -1,0 +1,7 @@
+# Placeholder bank statement -- NOT a real SBI format. Dated well before the
+# other sample data specifically to test "last 3 months" vs "since inception"
+# views against data that should be excluded from the former but included in
+# the latter.
+# Format: date | CREDIT/DEBIT | category | counterparty | amount | description
+2026-02-10 | CREDIT | donation | Founding Trust Deposit | 100000 | Initial trust corpus deposit
+2026-02-18 | DEBIT | vendor_services | Rangaiah Borewell Services | 18000 | Borewell repair and motor service

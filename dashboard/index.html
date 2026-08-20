@@ -1,6 +1,6 @@
 <!doctype html>
-<title>Golden Mouth — Payments Ledger</title>
-<meta name="description" content="Payments dashboard for the Golden Mouth forest &amp; garden preserve, built from WhatsApp payment extraction.">
+<title>Golden Face — Payments Ledger</title>
+<meta name="description" content="Payments dashboard for the Golden Face forest &amp; garden preserve, built from WhatsApp, bank statement, and receipt extraction.">
 <style>
   :root {
     --bg: #F5F7F0;
@@ -322,13 +322,33 @@
 <main>
   <header class="page-head">
     <div>
-      <h1 class="wordmark"><span class="golden">Golden</span> Mouth</h1>
+      <h1 class="wordmark"><span class="golden">Golden</span> Face</h1>
       <p class="subtitle">Forest &amp; Garden Preserve · Payments Ledger</p>
     </div>
     <div class="period-badge" id="period-badge">—</div>
   </header>
 
   <section class="kpi-row" id="kpi-row" aria-label="Summary totals"></section>
+
+  <section class="panel">
+    <p class="section-label">Recent Transactions (last 3 months)</p>
+    <div class="table-scroll">
+      <table class="ledger" id="recent-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>To</th>
+            <th>From</th>
+            <th>Source</th>
+            <th style="text-align:right">Amount</th>
+            <th>Proof</th>
+          </tr>
+        </thead>
+        <tbody id="recent-body"></tbody>
+      </table>
+      <div class="empty-state" id="recent-empty" hidden>No transactions in the last three months.</div>
+    </div>
+  </section>
 
   <section class="panel">
     <div class="chart-head">
@@ -351,7 +371,7 @@
       <div class="employee-cards" id="employee-cards"></div>
     </div>
     <div class="panel">
-      <p class="section-label">By Category</p>
+      <p class="section-label">Worker Payments by Category</p>
       <div class="donut-wrap">
         <svg width="150" height="150" viewBox="0 0 150 150" id="donut-svg"></svg>
         <div class="donut-legend" id="donut-legend"></div>
@@ -360,7 +380,7 @@
   </section>
 
   <section class="panel">
-    <p class="section-label">Payment Ledger</p>
+    <p class="section-label">Worker Payment History</p>
     <div class="filter-row">
       <div class="filter-group" id="employee-filters"></div>
       <div class="filter-group" id="category-filters"></div>
@@ -383,21 +403,36 @@
     </div>
   </section>
 
-  <footer class="page-foot" id="footer-note">Generated from sample WhatsApp exports.</footer>
+  <footer class="page-foot" id="footer-note">Generated from ledger data.</footer>
 </main>
 
 <script>
 const CONTACTS = [{"phone": "+91 98450 11201", "name": "Anand", "role": "manager"}, {"phone": "+91 98450 11202", "name": "Ramesh", "role": "employee", "category": "pruning_fertilizing", "category_label": "Pruning & Fertilizing"}, {"phone": "+91 98450 11203", "name": "Suresh", "role": "employee", "category": "spraying_pest_control", "category_label": "Spraying & Pest Control"}, {"phone": "+91 98450 11204", "name": "Lakshmi", "role": "employee", "category": "general_maintenance", "category_label": "General Maintenance & Reporting"}];
-const PAYMENTS = [{"id": 1, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-06-08", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay for walkthrough, reporting and watering potted plants", "source_excerpt": "Sounds good, sending 2800 for the week", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 2, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-06-15", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay for visitor logging and general maintenance", "source_excerpt": "Sending 2960 this week, 2800 as usual plus 160 for the lock", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 3, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-06-15", "amount": 160, "currency": "INR", "payment_category": "reimbursement", "description": "Reimbursement for new north gate lock bought and fitted", "source_excerpt": "Sending 2960 this week, 2800 as usual plus 160 for the lock", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 4, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-06-23", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay for preparing entrance and visitor area for trust members' visit", "source_excerpt": "Nice, you handled it well. Sending 3200 this week, added a bit extra for how the visit went", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 5, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-06-23", "amount": 400, "currency": "INR", "payment_category": "bonus", "description": "Extra for the well-handled surprise trust members' visit, praised as organized", "source_excerpt": "Nice, you handled it well. Sending 3200 this week, added a bit extra for how the visit went", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 6, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-06-29", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay for walkthrough, checking the repaired bench and watering plants", "source_excerpt": "Good, sending 2800 for the week", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 7, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-07-08", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Delayed weekly pay for previous week's maintenance work (bank issue)", "source_excerpt": "Sorted now, sending 2800 for last week", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 8, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-07-13", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay including water tank inspection", "source_excerpt": "Sending 2800 for this week's work", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 9, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-07-20", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay for walkthrough and reporting (noted stray dogs near compost area)", "source_excerpt": "Noted, we'll look into it. Sending 2800 for the week", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 10, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-07-27", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay for walkthrough, watering plants and updating visitor log", "source_excerpt": "Good, sending 2800 for the week", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 11, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-08-03", "amount": 2800, "currency": "INR", "payment_category": "wage", "description": "Weekly pay for walkthrough and reporting", "source_excerpt": "Go ahead, sending 2950 this week, 2800 as usual plus 150 for supplies", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 12, "phone": "+91 98450 11204", "name": "Lakshmi", "category_tag": "general_maintenance", "category_label": "General Maintenance & Reporting", "date": "2026-08-03", "amount": 150, "currency": "INR", "payment_category": "advance", "description": "Advance to buy a new broom and cleaning supplies", "source_excerpt": "Go ahead, sending 2950 this week, 2800 as usual plus 150 for supplies", "chat_file": "lakshmi_general_maintenance.txt"}, {"id": 13, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-06-06", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage for pruning the hibiscus hedge near east gate and fertilizing 6 guava trees", "source_excerpt": "Sending ₹3000 for this week's work", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 14, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-06-13", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage for pruning roses near the office, neem cake in rose soil, and checking mango saplings", "source_excerpt": "Ok keep an eye on that. Sending ₹3000 for the week", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 15, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-06-27", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage for clearing the pruning backlog - hedges, saplings, and starting composting", "source_excerpt": "Nice, sending ₹3000 for the week plus ₹500 for the manure, ₹3500 total", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 16, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-06-27", "amount": 500, "currency": "INR", "payment_category": "reimbursement", "description": "Reimbursement for extra cow dung manure Ramesh bought out of pocket", "source_excerpt": "Nice, sending ₹3000 for the week plus ₹500 for the manure, ₹3500 total", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 17, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-07-04", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage for pruning everything and fertilizing rose beds ahead of the trust members' visit", "source_excerpt": "Perfect timing. Sending ₹3000 for the week", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 18, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-07-11", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage (usual ₹3000 portion of the ₹3200 sent)", "source_excerpt": "Sending ₹3200 for the week, added a bit extra for the hibiscus", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 19, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-07-11", "amount": 200, "currency": "INR", "payment_category": "bonus", "description": "Extra for the hibiscus row, which trust members praised specifically", "source_excerpt": "Sending ₹3200 for the week, added a bit extra for the hibiscus", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 20, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-07-18", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage for applying neem oil mix around 4 mango trees for ants and pruning guava trees", "source_excerpt": "Good. Sending ₹3000 for the week", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 21, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-07-25", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage for regular pruning and fertilizing plus fertilizing the boundary wall hedge", "source_excerpt": "Great, sending ₹3000 for the week", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 22, "phone": "+91 98450 11202", "name": "Ramesh", "category_tag": "pruning_fertilizing", "category_label": "Pruning & Fertilizing", "date": "2026-08-01", "amount": 3000, "currency": "INR", "payment_category": "wage", "description": "Weekly wage for clearing drainage near rose beds, pruning roses, fertilizing guava trees", "source_excerpt": "Nice work as always. Sending ₹3000 for the week", "chat_file": "ramesh_pruning_fertilizing.txt"}, {"id": 23, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-06-07", "amount": 2500, "currency": "INR", "payment_category": "wage", "description": "Weekly spraying plus mosquito fogging around pond, compost area and shed; includes fogging fuel", "source_excerpt": "Sending Rs. 2500 for the fogging fuel and spraying this week", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 24, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-06-14", "amount": 2200, "currency": "INR", "payment_category": "wage", "description": "Weekly detergent spraying of mango saplings and guava trees for aphids", "source_excerpt": "Sending Rs. 2200 for the week", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 25, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-06-21", "amount": 2200, "currency": "INR", "payment_category": "wage", "description": "Weekly regular spraying", "source_excerpt": "Sending Rs. 2200 for the work plus Rs. 800 for supplies, Rs. 3000 total", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 26, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-06-21", "amount": 800, "currency": "INR", "payment_category": "reimbursement", "description": "Reimbursement for 2 bottles of detergent concentrate and mosquito coils bought by Suresh", "source_excerpt": "Sending Rs. 2200 for the work plus Rs. 800 for supplies, Rs. 3000 total", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 27, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-06-28", "amount": 2200, "currency": "INR", "payment_category": "wage", "description": "Weekly spraying plus emptying standing water bucket near shed to stop mosquito breeding", "source_excerpt": "Good catch. Sending Rs. 2200 for the week", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 28, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-07-07", "amount": 2200, "currency": "INR", "payment_category": "wage", "description": "Weekly spraying and fogging, done after rain delay", "source_excerpt": "Good, that needed doing. Sending Rs. 2800 for the week, extra for the overtime and double dose", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 29, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-07-07", "amount": 600, "currency": "INR", "payment_category": "bonus", "description": "Extra for overtime and double dose spraying/fogging across the whole property after rain delay", "source_excerpt": "Good, that needed doing. Sending Rs. 2800 for the week, extra for the overtime and double dose", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 30, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-07-12", "amount": 2200, "currency": "INR", "payment_category": "wage", "description": "Weekly regular spraying, checked shed for standing water", "source_excerpt": "Good. Sending Rs. 2200 for the week", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 31, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-07-19", "amount": 1700, "currency": "INR", "payment_category": "wage", "description": "Weekly spraying; reduced from usual Rs. 2200 as Suresh's half share of the Rs. 500 cracked fogging machine nozzle replacement", "source_excerpt": "Ok, accidents happen, but the replacement nozzle is Rs. 500, let's split it. Sending Rs. 1700 this week instead of Rs. 2200, we'll settle the rest later", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 32, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-07-26", "amount": 2200, "currency": "INR", "payment_category": "wage", "description": "Weekly regular spraying and fitting the new fogging machine nozzle; nozzle cost settled", "source_excerpt": "Good. Sending Rs. 2200 for the week, we're settled on the nozzle now", "chat_file": "suresh_spraying_pest_control.txt"}, {"id": 33, "phone": "+91 98450 11203", "name": "Suresh", "category_tag": "spraying_pest_control", "category_label": "Spraying & Pest Control", "date": "2026-08-02", "amount": 2200, "currency": "INR", "payment_category": "wage", "description": "Weekly spraying and fogging with extra fogging near the pond", "source_excerpt": "Sending Rs. 2200 for the week", "chat_file": "suresh_spraying_pest_control.txt"}];
+const PAYMENTS = [{"id": 1, "date": "2026-06-08", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for walkthrough, reporting and watering potted plants", "source": "whatsapp", "source_excerpt": "Sounds good, sending 2800 for the week", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 2, "date": "2026-06-15", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for visitor logging and general maintenance", "source": "whatsapp", "source_excerpt": "Sending 2960 this week, 2800 as usual plus 160 for the lock", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 3, "date": "2026-06-15", "amount": 160, "currency": "INR", "transaction_type": "worker_payment", "category": "reimbursement", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Reimbursement for new gate lock Lakshmi bought and fitted (cost 160)", "source": "whatsapp", "source_excerpt": "Sending 2960 this week, 2800 as usual plus 160 for the lock", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 4, "date": "2026-06-23", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for preparing entrance and visitor area for the trust members' visit", "source": "whatsapp", "source_excerpt": "Nice, you handled it well. Sending 3200 this week, added a bit extra for how the visit went", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 5, "date": "2026-06-23", "amount": 400, "currency": "INR", "transaction_type": "worker_payment", "category": "bonus", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Extra for the well-handled trust members' surprise visit, praised as organized", "source": "whatsapp", "source_excerpt": "Nice, you handled it well. Sending 3200 this week, added a bit extra for how the visit went", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 6, "date": "2026-06-29", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for walkthrough, checking the repaired bench and watering plants", "source": "whatsapp", "source_excerpt": "Good, sending 2800 for the week", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 7, "date": "2026-07-08", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for the previous week, delayed due to a bank issue", "source": "whatsapp", "source_excerpt": "Sorted now, sending 2800 for last week", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 8, "date": "2026-07-13", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay including checking the water tank for algae buildup", "source": "whatsapp", "source_excerpt": "Sending 2800 for this week's work", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 9, "date": "2026-07-20", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for walkthrough and reporting (stray dogs near compost area noted)", "source": "whatsapp", "source_excerpt": "Noted, we'll look into it. Sending 2800 for the week", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 10, "date": "2026-07-27", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for walkthrough, watering plants and visitor log updates", "source": "whatsapp", "source_excerpt": "Good, sending 2800 for the week", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 11, "date": "2026-08-03", "amount": 2800, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Weekly pay for walkthrough and reporting, no issues that week", "source": "whatsapp", "source_excerpt": "Go ahead, sending 2950 this week, 2800 as usual plus 150 for supplies", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 12, "date": "2026-08-03", "amount": 150, "currency": "INR", "transaction_type": "worker_payment", "category": "advance", "to": "Lakshmi", "from": "Golden Face Trust", "phone": "+91 98450 11204", "worker_category_tag": "general_maintenance", "worker_category_label": "General Maintenance & Reporting", "description": "Money given ahead of buying a new broom and cleaning supplies", "source": "whatsapp", "source_excerpt": "Go ahead, sending 2950 this week, 2800 as usual plus 150 for supplies", "source_file": "lakshmi_general_maintenance.txt", "evidence_thumbnail": null}, {"id": 13, "date": "2026-06-06", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for pruning hibiscus hedge near east gate, mango saplings and fertilizing 6 guava trees", "source": "whatsapp", "source_excerpt": "Sending ₹3000 for this week's work", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 14, "date": "2026-06-13", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for pruning roses near the office, neem cake in rose soil and checking mango saplings", "source": "whatsapp", "source_excerpt": "Ok keep an eye on that. Sending ₹3000 for the week", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 15, "date": "2026-06-27", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for clearing the pruning backlog - hedges, saplings and starting composting", "source": "whatsapp", "source_excerpt": "Nice, sending ₹3000 for the week plus ₹500 for the manure, ₹3500 total", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 16, "date": "2026-06-27", "amount": 500, "currency": "INR", "transaction_type": "worker_payment", "category": "reimbursement", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Reimbursement for extra cow dung manure Ramesh bought out of pocket", "source": "whatsapp", "source_excerpt": "Nice, sending ₹3000 for the week plus ₹500 for the manure, ₹3500 total", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 17, "date": "2026-07-04", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for pruning and fertilizing rose beds ahead of the trust members' visit", "source": "whatsapp", "source_excerpt": "Perfect timing. Sending ₹3000 for the week", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 18, "date": "2026-07-11", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for pruning and fertilizing work", "source": "whatsapp", "source_excerpt": "Sending ₹3200 for the week, added a bit extra for the hibiscus", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 19, "date": "2026-07-11", "amount": 200, "currency": "INR", "transaction_type": "worker_payment", "category": "bonus", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Extra for the hibiscus row, which trust members praised specifically", "source": "whatsapp", "source_excerpt": "Sending ₹3200 for the week, added a bit extra for the hibiscus", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 20, "date": "2026-07-18", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for applying neem oil mix at base of 4 mango trees and pruning guava trees", "source": "whatsapp", "source_excerpt": "Good. Sending ₹3000 for the week", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 21, "date": "2026-07-25", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for regular pruning, fertilizing and fertilizing the boundary wall hedge", "source": "whatsapp", "source_excerpt": "Great, sending ₹3000 for the week", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 22, "date": "2026-08-01", "amount": 3000, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Ramesh", "from": "Golden Face Trust", "phone": "+91 98450 11202", "worker_category_tag": "pruning_fertilizing", "worker_category_label": "Pruning & Fertilizing", "description": "Weekly wage for clearing drainage near rose beds, pruning roses and fertilizing guava trees", "source": "whatsapp", "source_excerpt": "Nice work as always. Sending ₹3000 for the week", "source_file": "ramesh_pruning_fertilizing.txt", "evidence_thumbnail": null}, {"id": 23, "date": "2026-06-07", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly spraying work - mosquito fogging around pond, compost area and shed, plus detergent spray on roses and hibiscus", "source": "whatsapp", "source_excerpt": "Good. Sending Rs. 2500 for the fogging fuel and spraying this week", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 24, "date": "2026-06-07", "amount": 300, "currency": "INR", "transaction_type": "worker_payment", "category": "reimbursement", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Fuel for the fogging machine used during the pond-area fogging", "source": "whatsapp", "source_excerpt": "Good. Sending Rs. 2500 for the fogging fuel and spraying this week", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 25, "date": "2026-06-14", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly detergent spraying of mango saplings and guava trees for aphids", "source": "whatsapp", "source_excerpt": "Sending Rs. 2200 for the week", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 26, "date": "2026-06-21", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly regular spraying work", "source": "whatsapp", "source_excerpt": "Sending Rs. 2200 for the work plus Rs. 800 for supplies, Rs. 3000 total", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 27, "date": "2026-06-21", "amount": 800, "currency": "INR", "transaction_type": "worker_payment", "category": "reimbursement", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "2 bottles of detergent concentrate and mosquito coils bought out of pocket", "source": "whatsapp", "source_excerpt": "Sending Rs. 2200 for the work plus Rs. 800 for supplies, Rs. 3000 total", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 28, "date": "2026-06-28", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly spraying plus checking shed area, emptied bucket of standing water", "source": "whatsapp", "source_excerpt": "Good catch. Sending Rs. 2200 for the week", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 29, "date": "2026-07-07", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly spraying and fogging, delayed by rain, whole property covered", "source": "whatsapp", "source_excerpt": "Good, that needed doing. Sending Rs. 2800 for the week, extra for the overtime and double dose", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 30, "date": "2026-07-07", "amount": 600, "currency": "INR", "transaction_type": "worker_payment", "category": "bonus", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Extra for overtime and double-dose spraying/fogging after the rain delay", "source": "whatsapp", "source_excerpt": "Good, that needed doing. Sending Rs. 2800 for the week, extra for the overtime and double dose", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 31, "date": "2026-07-12", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly regular spraying, checked shed for standing water", "source": "whatsapp", "source_excerpt": "Good. Sending Rs. 2200 for the week", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 32, "date": "2026-07-19", "amount": 1700, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly spraying, reduced from usual Rs. 2200 as half share (Rs. 500 split) of the cracked fogging machine nozzle replacement", "source": "whatsapp", "source_excerpt": "Ok, accidents happen, but the replacement nozzle is Rs. 500, let's split it. Sending Rs. 1700 this week instead of Rs. 2200, we'll settle the rest later", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 33, "date": "2026-07-26", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly regular spraying and fitting the new fogging machine nozzle; nozzle cost now settled", "source": "whatsapp", "source_excerpt": "Good. Sending Rs. 2200 for the week, we're settled on the nozzle now", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 34, "date": "2026-08-02", "amount": 2200, "currency": "INR", "transaction_type": "worker_payment", "category": "wage", "to": "Suresh", "from": "Golden Face Trust", "phone": "+91 98450 11203", "worker_category_tag": "spraying_pest_control", "worker_category_label": "Spraying & Pest Control", "description": "Weekly spraying and fogging with extra fogging near the pond", "source": "whatsapp", "source_excerpt": "Sending Rs. 2200 for the week", "source_file": "suresh_spraying_pest_control.txt", "evidence_thumbnail": null}, {"id": 35, "date": "2026-06-01", "amount": 50000.0, "currency": "INR", "transaction_type": "income", "category": "donation", "to": "Golden Face Trust", "from": "Trust Corpus Donor", "phone": null, "worker_category_tag": null, "worker_category_label": null, "description": "Monthly trust deposit", "source": "bank_statement", "source_excerpt": null, "source_file": "sbi_june_2026.txt", "evidence_thumbnail": null}, {"id": 36, "date": "2026-06-12", "amount": 3200.0, "currency": "INR", "transaction_type": "expense", "category": "supplies", "to": "Sri Ganesh Hardware", "from": "Golden Face Trust", "phone": null, "worker_category_tag": null, "worker_category_label": null, "description": "Fencing wire purchase, bank transfer", "source": "bank_statement", "source_excerpt": null, "source_file": "sbi_june_2026.txt", "evidence_thumbnail": null}, {"id": 37, "date": "2026-06-20", "amount": 1150.0, "currency": "INR", "transaction_type": "expense", "category": "utilities", "to": "APSPDCL", "from": "Golden Face Trust", "phone": null, "worker_category_tag": null, "worker_category_label": null, "description": "Monthly electricity bill for the caretaker cottage", "source": "bank_statement", "source_excerpt": null, "source_file": "sbi_june_2026.txt", "evidence_thumbnail": null}, {"id": 38, "date": "2026-06-10", "amount": 4500.0, "currency": "INR", "transaction_type": "expense", "category": "supplies", "to": "Sri Ganesh Hardware", "from": "Golden Face Trust", "phone": null, "worker_category_tag": null, "worker_category_label": null, "description": "Fencing wire and posts for north boundary", "source": "receipt", "source_excerpt": null, "source_file": "hardware_receipt_2026-06-10.txt", "evidence_thumbnail": "hardware_receipt_2026-06-10.txt"}, {"id": 39, "date": "2026-02-10", "amount": 100000.0, "currency": "INR", "transaction_type": "income", "category": "donation", "to": "Golden Face Trust", "from": "Founding Trust Deposit", "phone": null, "worker_category_tag": null, "worker_category_label": null, "description": "Initial trust corpus deposit", "source": "bank_statement", "source_excerpt": null, "source_file": "sbi_february_2026.txt", "evidence_thumbnail": null}, {"id": 40, "date": "2026-02-18", "amount": 18000.0, "currency": "INR", "transaction_type": "expense", "category": "vendor_services", "to": "Rangaiah Borewell Services", "from": "Golden Face Trust", "phone": null, "worker_category_tag": null, "worker_category_label": null, "description": "Borewell repair and motor service", "source": "bank_statement", "source_excerpt": null, "source_file": "sbi_february_2026.txt", "evidence_thumbnail": null}];
 
 const EMPLOYEE_COLOR = { Ramesh: "var(--forest)", Suresh: "var(--blue)", Lakshmi: "var(--terracotta)" };
 const CATEGORY_COLOR = { wage: "var(--forest)", bonus: "var(--gold)", reimbursement: "var(--blue)", advance: "var(--purple)" };
 const CATEGORY_LABEL = { wage: "Wage", bonus: "Bonus", reimbursement: "Reimbursement", advance: "Advance" };
+const SOURCE_LABEL = { whatsapp: "WhatsApp", bank_statement: "Bank Statement", receipt: "Receipt" };
+const TRANSACTION_TYPE_COLOR = { worker_payment: "var(--forest)", expense: "var(--terracotta)", income: "var(--blue)" };
 
 const employees = CONTACTS.filter(c => c.role === "employee");
+// Charts below (weekly spend, employee cards, category donut, the filterable
+// history table) are all scoped to worker payments only -- mixing wage/bonus
+// categories with expense categories like "supplies" or income categories
+// like "donation" in the same chart would compare unrelated things.
+const WORKER_PAYMENTS = PAYMENTS.filter(p => p.transaction_type === "worker_payment");
+
 const fmtINR = n => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const fmtDateShort = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+
+const NOW = new Date();
+const CURRENT_YEAR = NOW.getFullYear();
+const THREE_MONTHS_AGO = new Date(NOW);
+THREE_MONTHS_AGO.setMonth(THREE_MONTHS_AGO.getMonth() - 3);
+const RECENT_CUTOFF = THREE_MONTHS_AGO.toISOString().slice(0, 10);
+const isYTD = d => new Date(d + "T00:00:00").getFullYear() === CURRENT_YEAR;
 
 // ---------- period badge ----------
 (function renderPeriod() {
@@ -406,37 +441,57 @@ const fmtDateShort = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", 
   el.textContent = dates.length ? `${fmtDateShort(dates[0])} – ${fmtDate(dates[dates.length - 1])}` : "No data";
 })();
 
-// ---------- KPIs ----------
-const KPI_CATEGORY_SUB = {
-  wage: "Base weekly labor",
-  bonus: "Performance extras",
-  reimbursement: "Materials & supplies",
-  advance: "Paid ahead of an expense",
-};
-const KPI_CATEGORY_LABEL_PLURAL = {
-  wage: "Wages",
-  bonus: "Bonuses",
-  reimbursement: "Reimbursements",
-  advance: "Advances",
-};
+// ---------- summary totals (payments / expenses / balance) ----------
+function totalFor(transactionType, ytdOnly) {
+  return PAYMENTS
+    .filter(p => p.transaction_type === transactionType)
+    .filter(p => !ytdOnly || isYTD(p.date))
+    .reduce((s, p) => s + p.amount, 0);
+}
+// Balance starts from a zero opening balance: income in, worker payments and
+// expenses out.
+function balanceFor(ytdOnly) {
+  return totalFor("income", ytdOnly) - totalFor("expense", ytdOnly) - totalFor("worker_payment", ytdOnly);
+}
 
-(function renderKPIs() {
-  const total = PAYMENTS.reduce((s, p) => s + p.amount, 0);
-  const byCat = {};
-  PAYMENTS.forEach(p => { byCat[p.payment_category] = (byCat[p.payment_category] || 0) + p.amount; });
-
+(function renderSummary() {
   const tiles = [
-    { label: "Total Paid", value: fmtINR(total), sub: `${PAYMENTS.length} payments · ${employees.length} employees`, color: "var(--gold)" },
-    ...Object.keys(CATEGORY_LABEL)
-      .filter(c => byCat[c] > 0)
-      .map(c => ({ label: KPI_CATEGORY_LABEL_PLURAL[c], value: fmtINR(byCat[c]), sub: KPI_CATEGORY_SUB[c], color: CATEGORY_COLOR[c] })),
+    { label: "Total Payments", color: "var(--forest)", inception: totalFor("worker_payment", false), ytd: totalFor("worker_payment", true) },
+    { label: "Total Expenses", color: "var(--terracotta)", inception: totalFor("expense", false), ytd: totalFor("expense", true) },
+    { label: "Current Balance", color: "var(--gold)", inception: balanceFor(false), ytd: balanceFor(true) },
   ];
   document.getElementById("kpi-row").innerHTML = tiles.map(t => `
     <div class="kpi-tile" style="--tile-color:${t.color}">
-      <p class="kpi-label">${t.label}</p>
-      <p class="kpi-value">${t.value}</p>
-      <p class="kpi-sub">${t.sub}</p>
+      <p class="kpi-label">${t.label} · Since Inception</p>
+      <p class="kpi-value">${fmtINR(t.inception)}</p>
+      <p class="kpi-sub">Year to date: ${fmtINR(t.ytd)}</p>
     </div>`).join("");
+})();
+
+// ---------- recent transactions (last 3 months, all sources) ----------
+function renderProofCell(p) {
+  if (!p.evidence_thumbnail) return '<span style="color:var(--ink-faint)">–</span>';
+  return `<span title="${p.evidence_thumbnail.replace(/"/g, "&quot;")}" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:var(--surface-alt);border:1px solid var(--border);">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" stroke-width="2"><path d="M6 2h9l3 3v17H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+  </span>`;
+}
+
+(function renderRecentTransactions() {
+  const rows = PAYMENTS
+    .filter(p => p.date >= RECENT_CUTOFF)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+  document.getElementById("recent-empty").hidden = rows.length > 0;
+
+  document.getElementById("recent-body").innerHTML = rows.map(p => `
+    <tr>
+      <td class="cell-date">${fmtDate(p.date)}</td>
+      <td>${p.to}</td>
+      <td>${p.from}</td>
+      <td><span class="cat-pill" style="background:${TRANSACTION_TYPE_COLOR[p.transaction_type]}">${SOURCE_LABEL[p.source]}</span></td>
+      <td class="cell-amount">${fmtINR(p.amount)}</td>
+      <td>${renderProofCell(p)}</td>
+    </tr>`).join("");
 })();
 
 // ---------- weekly grouped bar chart ----------
@@ -450,15 +505,15 @@ function isoWeekStart(dateStr) {
 const WEEKLY_CHART_MODES = {
   employee: {
     title: "Weekly Spend by Employee",
-    groupKey: p => p.name,
+    groupKey: p => p.to,
     seriesKeys: () => employees.map(e => e.name),
     color: key => EMPLOYEE_COLOR[key],
     label: key => key,
   },
   category: {
     title: "Weekly Spend by Category",
-    groupKey: p => p.payment_category,
-    seriesKeys: () => Object.keys(CATEGORY_LABEL).filter(c => PAYMENTS.some(p => p.payment_category === c)),
+    groupKey: p => p.category,
+    seriesKeys: () => Object.keys(CATEGORY_LABEL).filter(c => WORKER_PAYMENTS.some(p => p.category === c)),
     color: key => CATEGORY_COLOR[key],
     label: key => CATEGORY_LABEL[key],
   },
@@ -468,7 +523,7 @@ let weeklyChartMode = "employee";
 function renderWeeklyChart() {
   const mode = WEEKLY_CHART_MODES[weeklyChartMode];
   const weeks = {};
-  PAYMENTS.forEach(p => {
+  WORKER_PAYMENTS.forEach(p => {
     const wk = isoWeekStart(p.date);
     const key = mode.groupKey(p);
     weeks[wk] = weeks[wk] || {};
@@ -562,7 +617,7 @@ renderWeeklyChart();
 // ---------- employee cards ----------
 (function renderEmployeeCards() {
   const html = employees.map(emp => {
-    const rows = PAYMENTS.filter(p => p.phone === emp.phone);
+    const rows = WORKER_PAYMENTS.filter(p => p.phone === emp.phone);
     const total = rows.reduce((s, p) => s + p.amount, 0);
     return `
       <div class="employee-card">
@@ -586,7 +641,7 @@ renderWeeklyChart();
 // ---------- category donut ----------
 (function renderDonut() {
   const totals = {};
-  PAYMENTS.forEach(p => { totals[p.payment_category] = (totals[p.payment_category] || 0) + p.amount; });
+  WORKER_PAYMENTS.forEach(p => { totals[p.category] = (totals[p.category] || 0) + p.amount; });
   const cats = Object.keys(CATEGORY_LABEL).filter(c => totals[c] > 0);
   const grand = cats.reduce((s, c) => s + totals[c], 0);
 
@@ -624,7 +679,7 @@ function renderFilters() {
     .concat(employees.map(e => `<button class="chip" data-emp="${e.name}">${e.name}</button>`)).join("");
   document.getElementById("employee-filters").innerHTML = empHTML;
 
-  const cats = Object.keys(CATEGORY_LABEL).filter(c => PAYMENTS.some(p => p.payment_category === c));
+  const cats = Object.keys(CATEGORY_LABEL).filter(c => WORKER_PAYMENTS.some(p => p.category === c));
   const catHTML = ['<button class="chip active gold-chip" data-cat="all">All categories</button>']
     .concat(cats.map(c => `<button class="chip" data-cat="${c}">${CATEGORY_LABEL[c]}</button>`)).join("");
   document.getElementById("category-filters").innerHTML = catHTML;
@@ -642,9 +697,9 @@ function renderFilters() {
 }
 
 function renderTable() {
-  const rows = PAYMENTS
-    .filter(p => activeEmployee === "all" || p.name === activeEmployee)
-    .filter(p => activeCategory === "all" || p.payment_category === activeCategory)
+  const rows = WORKER_PAYMENTS
+    .filter(p => activeEmployee === "all" || p.to === activeEmployee)
+    .filter(p => activeCategory === "all" || p.category === activeCategory)
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
 
   document.getElementById("empty-state").hidden = rows.length > 0;
@@ -652,8 +707,8 @@ function renderTable() {
   document.getElementById("ledger-body").innerHTML = rows.map(p => `
     <tr>
       <td class="cell-date">${fmtDate(p.date)}</td>
-      <td><span class="cell-employee"><span class="employee-dot" style="background:${EMPLOYEE_COLOR[p.name]}"></span>${p.name}</span></td>
-      <td><span class="cat-pill" style="background:${CATEGORY_COLOR[p.payment_category]}">${CATEGORY_LABEL[p.payment_category]}</span></td>
+      <td><span class="cell-employee"><span class="employee-dot" style="background:${EMPLOYEE_COLOR[p.to]}"></span>${p.to}</span></td>
+      <td><span class="cat-pill" style="background:${CATEGORY_COLOR[p.category]}">${CATEGORY_LABEL[p.category]}</span></td>
       <td class="cell-amount">${fmtINR(p.amount)}</td>
       <td class="cell-note">${p.description}</td>
       <td class="cell-source" title="${p.source_excerpt.replace(/"/g, "&quot;")}">“${p.source_excerpt}”</td>
@@ -664,5 +719,6 @@ renderFilters();
 renderTable();
 
 document.getElementById("footer-note").textContent =
-  `Generated from ${new Set(PAYMENTS.map(p => p.chat_file)).size} sample WhatsApp exports · ${PAYMENTS.length} payment events logged.`;
+  `Generated from ${new Set(PAYMENTS.map(p => p.source_file)).size} source document(s) `
+  + `across ${new Set(PAYMENTS.map(p => p.source)).size} source type(s) · ${PAYMENTS.length} transactions logged.`;
 </script>

@@ -26,7 +26,7 @@ import anthropic
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
-from record_payment import record_payment, VALID_CATEGORIES  # noqa: E402
+from record_payment import record_payment, WORKER_PAYMENT_CATEGORIES  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTACTS_PATH = ROOT / "data" / "contacts.json"
@@ -37,7 +37,7 @@ load_dotenv(ROOT / ".env")
 MODEL = "claude-opus-5"
 
 SYSTEM_PROMPT = """You extract payment records from a WhatsApp conversation between the manager \
-of a forest and garden preserve (Golden Mouth) and one of its workers.
+of a forest and garden preserve (Golden Face) and one of its workers.
 
 Payments are always manager -> worker. A message where the worker mentions paying someone else \
 out of petty cash they were already holding (e.g. paying other workers, buying something for a \
@@ -99,7 +99,7 @@ PAYMENTS_SCHEMA = {
                     },
                     "category": {
                         "type": "string",
-                        "enum": sorted(VALID_CATEGORIES),
+                        "enum": sorted(WORKER_PAYMENT_CATEGORIES),
                     },
                     "description": {
                         "type": "string",
@@ -168,13 +168,15 @@ def main():
                 print(f"  [dry-run] {p['date']} {p['phone']} {p['category']} {p['amount']} -- {p['description']}")
             else:
                 record_payment(
-                    phone=p["phone"],
+                    transaction_type="worker_payment",
                     date_str=p["date"],
                     amount=p["amount"],
                     category=p["category"],
                     description=p["description"],
+                    source="whatsapp",
+                    source_file=chat_path.name,
+                    phone=p["phone"],
                     source_excerpt=p["source_excerpt"],
-                    chat_file=chat_path.name,
                 )
             total += 1
 
