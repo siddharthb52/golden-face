@@ -139,6 +139,34 @@
   }
   .chart-head .section-label { margin: 0; }
 
+  /* collapsible panels */
+  .panel-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink-muted);
+    cursor: pointer;
+    flex: none;
+    padding: 0;
+  }
+  .panel-toggle:hover { background: var(--surface-alt); color: var(--ink); }
+  .panel-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .panel-toggle svg { display: block; transition: transform 0.2s ease; }
+  .panel.collapsed .panel-toggle svg { transform: rotate(-90deg); }
+
+  .panel-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.2s ease;
+  }
+  .panel-body > div { overflow: hidden; min-height: 0; }
+  .panel.collapsed .panel-body { grid-template-rows: 0fr; }
+
   /* KPI row */
   .kpi-row {
     display: grid;
@@ -331,7 +359,13 @@
   <section class="kpi-row" id="kpi-row" aria-label="Summary totals"></section>
 
   <section class="panel">
-    <p class="section-label">Recent Transactions (last 3 months)</p>
+    <div class="chart-head">
+      <p class="section-label">Recent Transactions (last 3 months)</p>
+      <button class="panel-toggle" type="button" aria-expanded="true" aria-label="Collapse section">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+    </div>
+    <div class="panel-body"><div>
     <div class="table-scroll">
       <table class="ledger" id="recent-table">
         <thead>
@@ -348,39 +382,67 @@
       </table>
       <div class="empty-state" id="recent-empty" hidden>No transactions in the last three months.</div>
     </div>
+    </div></div>
   </section>
 
   <section class="panel">
     <div class="chart-head">
       <p class="section-label" id="weekly-chart-title">Weekly Spend by Employee</p>
-      <div class="filter-group" id="weekly-chart-toggle">
-        <button class="chip active" data-mode="employee">By Employee</button>
-        <button class="chip" data-mode="category">By Category</button>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="filter-group" id="weekly-chart-toggle">
+          <button class="chip active" data-mode="employee">By Employee</button>
+          <button class="chip" data-mode="category">By Category</button>
+        </div>
+        <button class="panel-toggle" type="button" aria-expanded="true" aria-label="Collapse section">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
       </div>
     </div>
+    <div class="panel-body"><div>
     <div class="chart-wrap">
       <svg class="chart-svg" id="weekly-chart" viewBox="0 0 1000 300" preserveAspectRatio="xMidYMid meet"></svg>
       <div class="tooltip" id="chart-tooltip"></div>
     </div>
     <div class="legend" id="weekly-legend"></div>
+    </div></div>
   </section>
 
   <section class="two-col">
     <div class="panel">
-      <p class="section-label">By Employee</p>
+      <div class="chart-head">
+        <p class="section-label">By Employee</p>
+        <button class="panel-toggle" type="button" aria-expanded="true" aria-label="Collapse section">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+      </div>
+      <div class="panel-body"><div>
       <div class="employee-cards" id="employee-cards"></div>
+      </div></div>
     </div>
     <div class="panel">
-      <p class="section-label">Worker Payments by Category</p>
+      <div class="chart-head">
+        <p class="section-label">Worker Payments by Category</p>
+        <button class="panel-toggle" type="button" aria-expanded="true" aria-label="Collapse section">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+      </div>
+      <div class="panel-body"><div>
       <div class="donut-wrap">
         <svg width="150" height="150" viewBox="0 0 150 150" id="donut-svg"></svg>
         <div class="donut-legend" id="donut-legend"></div>
       </div>
+      </div></div>
     </div>
   </section>
 
   <section class="panel">
-    <p class="section-label">Worker Payment History</p>
+    <div class="chart-head">
+      <p class="section-label">Worker Payment History</p>
+      <button class="panel-toggle" type="button" aria-expanded="true" aria-label="Collapse section">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+    </div>
+    <div class="panel-body"><div>
     <div class="filter-row">
       <div class="filter-group" id="employee-filters"></div>
       <div class="filter-group" id="category-filters"></div>
@@ -401,6 +463,7 @@
       </table>
       <div class="empty-state" id="empty-state" hidden>No payments match these filters.</div>
     </div>
+    </div></div>
   </section>
 
   <footer class="page-foot" id="footer-note">Generated from ledger data.</footer>
@@ -717,6 +780,16 @@ function renderTable() {
 
 renderFilters();
 renderTable();
+
+// ---------- collapsible panels ----------
+document.querySelectorAll(".panel-toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const panel = btn.closest(".panel");
+    const collapsed = panel.classList.toggle("collapsed");
+    btn.setAttribute("aria-expanded", String(!collapsed));
+    btn.setAttribute("aria-label", collapsed ? "Expand section" : "Collapse section");
+  });
+});
 
 document.getElementById("footer-note").textContent =
   `Generated from ${new Set(PAYMENTS.map(p => p.source_file)).size} source document(s) `
