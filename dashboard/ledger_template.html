@@ -68,7 +68,7 @@
 <main>
   <div>
     <h1>SSA Ledger — Local Review</h1>
-    <p class="subtitle">Sri Swarnamukhi Ashrama · Jan–Mar 2026 · local-only, not for sharing</p>
+    <p class="subtitle">Sri Swarnamukhi Ashrama · Jan–Mar 2026</p>
   </div>
 
   <section class="kpi-row" id="kpi-row"></section>
@@ -123,10 +123,12 @@ const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day
   const debits = TRANSACTIONS.filter(t => t.direction === "debit" && t.expense_included);
   const credits = TRANSACTIONS.filter(t => t.direction === "credit" && t.reporting_category === "Income");
   const withEvidence = TRANSACTIONS.filter(t => t.thumbnail);
+  const income = credits.reduce((s, t) => s + t.amount, 0);
+  const expenses = debits.reduce((s, t) => s + t.amount, 0);
   const tiles = [
-    { label: "Transactions", value: TRANSACTIONS.length },
-    { label: "Expense Total", value: fmtINR(debits.reduce((s, t) => s + t.amount, 0)) },
-    { label: "Income Total", value: fmtINR(credits.reduce((s, t) => s + t.amount, 0)) },
+    { label: "Income", value: fmtINR(income) },
+    { label: "Expenses", value: fmtINR(expenses) },
+    { label: "Current Balance", value: fmtINR(income - expenses) },
     { label: "With Matched Proof", value: `${withEvidence.length} / ${TRANSACTIONS.length}` },
   ];
   document.getElementById("kpi-row").innerHTML = tiles.map(t => `
