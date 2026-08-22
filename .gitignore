@@ -7,3 +7,5 @@ __pycache__/
 # names and addresses for an actual charitable trust) -- must never reach
 # the public GitHub repo. Fabricated/sample data stays out of this rule.
 data/real_docs/
+data/ledger.db
+dashboard/ledger.html
