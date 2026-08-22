@@ -2,3 +2,8 @@
 __pycache__/
 *.pyc
 .claude/settings.local.json
+
+# Real financial documents (real account numbers, IFSC/MICR codes, real
+# names and addresses for an actual charitable trust) -- must never reach
+# the public GitHub repo. Fabricated/sample data stays out of this rule.
+data/real_docs/
