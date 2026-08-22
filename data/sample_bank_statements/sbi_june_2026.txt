@@ -1,6 +1,0 @@
-# Placeholder bank statement -- NOT a real SBI format. Exists only to
-# validate that record_payment() handles transaction_type=income/expense.
-# Format: date | CREDIT/DEBIT | category | counterparty | amount | description
-2026-06-01 | CREDIT | donation | Trust Corpus Donor | 50000 | Monthly trust deposit
-2026-06-12 | DEBIT | supplies | Sri Ganesh Hardware | 3200 | Fencing wire purchase, bank transfer
-2026-06-20 | DEBIT | utilities | APSPDCL | 1150 | Monthly electricity bill for the caretaker cottage
