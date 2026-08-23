@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
 MODEL = "claude-opus-5"
+TRUST_NAME = "Sri Swarnamukhi Ashrama"
 
 SYSTEM_PROMPT = """You extract every individual transaction line from a State Bank of India \
 (SBI) bank statement's raw PDF text. The PDF's table layout gets flattened into wrapped, \
@@ -105,8 +106,8 @@ def extract_from_statement(client, statement_text):
 
 
 def insert_transaction(conn, txn, source_document):
-    to_party = txn["counterparty"] if txn["direction"] == "debit" else None
-    from_party = txn["counterparty"] if txn["direction"] == "credit" else None
+    to_party = txn["counterparty"] if txn["direction"] == "debit" else TRUST_NAME
+    from_party = txn["counterparty"] if txn["direction"] == "credit" else TRUST_NAME
     conn.execute(
         """INSERT INTO transactions
            (txn_date, value_date, direction, amount, balance_after, to_party, from_party,

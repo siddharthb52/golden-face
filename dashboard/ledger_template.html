@@ -35,7 +35,10 @@
   .kpi-label { display: inline-block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); margin: 0 0 6px; padding-bottom: 3px; border-bottom: 2px solid var(--gold); }
   .kpi-value { font-family: var(--font-display); font-size: 1.3rem; font-weight: 600; margin: 0; font-variant-numeric: tabular-nums; }
 
-  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+  .filter-block { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-right: 18px; border-right: 1px solid var(--border); }
+  .filter-block:last-of-type { border-right: none; padding-right: 0; }
+  .filter-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); white-space: nowrap; }
   .filter-group { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { font: inherit; font-size: 0.76rem; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-muted); cursor: pointer; }
   .chip:hover { border-color: var(--ink-faint); color: var(--ink); }
@@ -58,7 +61,10 @@
   .pill { display: inline-block; font-size: 0.68rem; padding: 2px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
   .status-pill { display: inline-block; font-size: 0.68rem; padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid var(--border); color: var(--ink-muted); }
   .status-pill.supported { border-color: var(--forest); color: var(--forest); }
-  .narration { max-width: 260px; color: var(--ink-faint); font-size: 0.76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .narration { max-width: 260px; color: var(--ink-faint); font-size: 0.76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .narration:hover { text-decoration: underline dotted var(--ink-faint); }
+  .narration-box { background: var(--surface); color: var(--ink); border-radius: 10px; padding: 20px 24px; max-width: 560px; max-height: 80vh; overflow-y: auto; font-size: 0.85rem; line-height: 1.6; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .narration-box .narration-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin: 0 0 8px; }
   .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: zoom-in; display: block; }
   .thumb-empty { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 0.7rem; border: 1px dashed var(--border); border-radius: 6px; }
   .empty-state { text-align: center; padding: 30px; color: var(--ink-faint); }
@@ -78,9 +84,15 @@
   <section class="kpi-row" id="kpi-row"></section>
 
   <div class="filter-row">
-    <div class="filter-group" id="direction-filters"></div>
-    <div class="filter-group" id="category-filters"></div>
-    <input class="search" id="search" type="text" placeholder="Search counterparty or narration...">
+    <div class="filter-block">
+      <span class="filter-label">Direction</span>
+      <div class="filter-group" id="direction-filters"></div>
+    </div>
+    <div class="filter-block">
+      <span class="filter-label">Category</span>
+      <div class="filter-group" id="category-filters"></div>
+    </div>
+    <input class="search" id="search" type="text" placeholder="Search...">
   </div>
 
   <section class="panel">
@@ -95,7 +107,7 @@
             <th data-sort="reporting_category">Category</th>
             <th>Sub-category</th>
             <th data-sort="status">Status</th>
-            <th>Narration</th>
+            <th>Purpose</th>
             <th>Proof</th>
           </tr>
         </thead>
@@ -106,6 +118,12 @@
   </section>
 
   <div class="lightbox" id="lightbox"><img id="lightbox-img" src="" alt=""></div>
+  <div class="lightbox" id="narration-lightbox">
+    <div class="narration-box">
+      <p class="narration-label">Bank Narration (raw, unedited)</p>
+      <div id="narration-text"></div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -204,17 +222,27 @@ function renderTable() {
       <td>${t.reporting_category ? `<span class="pill" style="background:${CATEGORY_COLOR[t.reporting_category] || "var(--ink-faint)"}">${t.reporting_category}</span>` : "—"}</td>
       <td>${t.sub_category || "—"}</td>
       <td>${t.status ? `<span class="status-pill ${t.status === "Supported" ? "supported" : ""}">${t.status}</span>` : "—"}</td>
-      <td class="narration" title="${(t.bank_narration || "").replace(/"/g, "&quot;")}">${t.purpose || t.bank_narration || ""}</td>
+      <td class="narration" data-narration-idx="${t.id}">${t.purpose || t.bank_narration || ""}</td>
       <td>${t.thumbnail
         ? `<img class="thumb" src="${t.thumbnail}" data-full="${t.full_image || t.thumbnail}" alt="receipt">`
         : `<span class="thumb-empty">—</span>`}</td>
     </tr>`).join("");
+
+  document.querySelectorAll(".narration").forEach(cell => cell.addEventListener("click", () => {
+    const t = TRANSACTIONS.find(x => x.id == cell.dataset.narrationIdx);
+    document.getElementById("narration-text").textContent = t.bank_narration || "(no narration text)";
+    document.getElementById("narration-lightbox").classList.add("visible");
+  }));
 
   document.querySelectorAll(".thumb").forEach(img => img.addEventListener("click", () => {
     document.getElementById("lightbox-img").src = img.dataset.full;
     document.getElementById("lightbox").classList.add("visible");
   }));
 }
+
+document.getElementById("narration-lightbox").addEventListener("click", () => {
+  document.getElementById("narration-lightbox").classList.remove("visible");
+});
 
 document.getElementById("lightbox").addEventListener("click", () => {
   document.getElementById("lightbox").classList.remove("visible");
