@@ -65,3 +65,64 @@ Then open `dashboard/ledger.html` directly in a browser. No server needed.
 `data/ledger.db` and `dashboard/ledger.html` are also gitignored, since both
 end up holding real financial data once built. Rebuilding is cheap: rerun
 `build_ledger_dashboard.py` any time `ledger.db` changes.
+
+## Hosting a shared, password-protected copy
+
+`server/app.py` serves the same dashboard live from a database, behind a
+login, instead of a static file you build and open locally. Use this when
+the dashboard needs to be reachable at a URL by people other than you. The
+deployment stack is Render (runs the app), Neon (Postgres), and Cloudflare
+(DNS/CDN in front of the domain, plus R2 for storing the receipt/check
+files themselves).
+
+1. Provision a Postgres database on Neon and set `DATABASE_URL` in `.env`
+   to its connection string.
+2. Pick a password and set `DASHBOARD_PASSWORD_HASH` in `.env`:
+   ```
+   python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('yourpassword'))"
+   ```
+3. Set `SESSION_SECRET_KEY` in `.env`:
+   ```
+   python -c "import secrets; print(secrets.token_hex(32))"
+   ```
+4. If you already have data in the local `data/ledger.db`, copy it into the
+   new Postgres database once:
+   ```
+   python scripts/migrate_to_postgres.py
+   ```
+   From this point on, run the pipeline scripts (`extract_bank_statements.py`,
+   `categorize_transactions.py`, `match_receipts.py`) with `DATABASE_URL` set
+   and they'll write directly to the hosted database instead of the local
+   file -- no separate sync step.
+5. Create a Cloudflare R2 bucket and an R2 API token (Cloudflare dashboard
+   -> R2 -> Manage R2 API Tokens), then set `R2_ACCOUNT_ID`,
+   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME` in
+   `.env`. Upload the existing receipt/check files once:
+   ```
+   python scripts/upload_evidence_to_r2.py
+   ```
+   `server/app.py`'s `/evidence` route reads from R2 automatically once
+   those four variables are set; leave them unset for local runs and it
+   reads `data/real_docs/` off disk instead, so R2 is opt-in and doesn't
+   affect local pipeline runs or `build_ledger_dashboard.py`.
+6. Run the server locally to test:
+   ```
+   python server/app.py
+   ```
+   and open `http://localhost:5000`.
+7. To deploy: push to Render, set `ANTHROPIC_API_KEY`, `DATABASE_URL`,
+   `DASHBOARD_PASSWORD_HASH`, `SESSION_SECRET_KEY`, and the four `R2_*`
+   variables there, and point Render's start command at the included
+   `Procfile` (`gunicorn server.app:app`). Then point a domain at it
+   through Cloudflare for HTTPS/CDN.
+
+The hosted app is intentionally not indexable (`robots.txt`, `noindex`
+headers) and rate-limits login attempts, but a shared password over the
+open internet is still weaker than per-person accounts -- treat the
+password itself as sensitive, and rotate it if it's ever shared beyond the
+people who should have it.
+
+Admin features (editing transactions, uploading evidence from the browser)
+aren't built yet -- this is read-only. Corrections still happen the same
+way they do locally: fix the row in the database, or fix it upstream in the
+pipeline and re-run.

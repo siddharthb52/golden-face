@@ -10,28 +10,18 @@ Usage:
   python scripts/build_ledger_dashboard.py
 """
 import base64
-import io
 import json
 import sqlite3
+import sys
 from pathlib import Path
 
-import pymupdf
-from PIL import Image
-
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+from render_evidence import render_evidence  # noqa: E402
+
 DB_PATH = ROOT / "data" / "ledger.db"
 TEMPLATE_PATH = ROOT / "dashboard" / "ledger_template.html"
 OUTPUT_PATH = ROOT / "dashboard" / "ledger.html"
-
-THUMB_SIZE = (220, 220)
-FULL_SIZE = (1600, 1600)
-
-
-def _data_uri(img, quality):
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="JPEG", quality=quality)
-    encoded = base64.standard_b64encode(buf.getvalue()).decode("ascii")
-    return f"data:image/jpeg;base64,{encoded}"
 
 
 def render_images(evidence_path):
@@ -39,21 +29,10 @@ def render_images(evidence_path):
     The full version is rendered at much higher resolution for the lightbox --
     the thumbnail is not just upscaled, since that would look pixelated."""
     path = ROOT / evidence_path
-    if path.suffix.lower() == ".pdf":
-        doc = pymupdf.open(path)
-        pix = doc[0].get_pixmap(dpi=200)
-        source = Image.open(io.BytesIO(pix.tobytes("png")))
-    else:
-        source = Image.open(path)
-
-    full_img = source.copy()
-    full_img.thumbnail(FULL_SIZE, Image.LANCZOS)
-    full_uri = _data_uri(full_img, 90)
-
-    thumb_img = source.copy()
-    thumb_img.thumbnail(THUMB_SIZE, Image.LANCZOS)
-    thumb_uri = _data_uri(thumb_img, 80)
-
+    thumb_bytes, _ = render_evidence(path, "thumb")
+    full_bytes, _ = render_evidence(path, "full")
+    thumb_uri = "data:image/jpeg;base64," + base64.standard_b64encode(thumb_bytes).decode("ascii")
+    full_uri = "data:image/jpeg;base64," + base64.standard_b64encode(full_bytes).decode("ascii")
     return thumb_uri, full_uri
 
 
