@@ -68,7 +68,7 @@ end up holding real financial data once built. Rebuilding is cheap: rerun
 
 ## Hosting a shared, password-protected copy
 
-`server/app.py` serves the same dashboard live from a database, behind a
+`app/app.py` serves the same dashboard live from a database, behind a
 login, instead of a static file you build and open locally. Use this when
 the dashboard needs to be reachable at a URL by people other than you. The
 deployment stack is Vercel (runs the app), Neon (Postgres), and Cloudflare
@@ -104,19 +104,20 @@ files themselves).
    ```
    python scripts/upload_evidence_to_r2.py
    ```
-   `server/app.py`'s `/evidence` route reads from R2 automatically once
+   `app/app.py`'s `/evidence` route reads from R2 automatically once
    those four variables are set; leave them unset for local runs and it
    reads `data/real_docs/` off disk instead, so R2 is opt-in and doesn't
    affect local pipeline runs or `build_ledger_dashboard.py`.
 6. Run the server locally to test:
    ```
-   python server/app.py
+   python app/app.py
    ```
    and open `http://localhost:5000`.
-7. To deploy: import the repo into Vercel. `pyproject.toml`'s
-   `[tool.vercel] entrypoint` tells Vercel where the Flask `app` object
-   lives (`server/app.py`); no `Procfile` or gunicorn needed, Vercel runs
-   the WSGI app directly as a Vercel Function. Set `ANTHROPIC_API_KEY`,
+7. To deploy: import the repo into Vercel. It auto-detects the Flask app
+   at `app/app.py` (Vercel looks for a top-level `app` instance in
+   `app.py`, `main.py`, etc. at the repo root or inside `src/`/`app/`) --
+   no `Procfile` or gunicorn needed, Vercel runs the WSGI app directly as
+   a Vercel Function. Set `ANTHROPIC_API_KEY`,
    `DATABASE_URL`, `DASHBOARD_PASSWORD_HASH`, `SESSION_SECRET_KEY`, and
    the four `R2_*` variables in the project's Environment Variables
    settings. Then point a domain at it through Cloudflare for HTTPS/CDN.

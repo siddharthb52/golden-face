@@ -6,7 +6,7 @@ evidence_file column, so no database changes are needed after this runs.
 
 Also pre-renders each file's thumbnail and full-size preview locally and
 uploads those too (as "<key>.thumb.jpg" / "<key>.full.jpg"), so the
-hosted server (server/app.py) can serve evidence images by fetching an
+hosted server (app/app.py) can serve evidence images by fetching an
 already-rendered JPEG from R2 instead of running pymupdf/PIL on every
 request -- rendering is CPU-bound (PDF rasterization + resize + JPEG
 encode) and doing it per-request was slow on Render's free-tier CPU

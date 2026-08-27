@@ -20,9 +20,9 @@ Requires these environment variables (see .env.example):
                           -- Cloudflare R2 evidence storage (optional locally)
 
 Local run:
-  python server/app.py
-Production (e.g. Render/Railway):
-  gunicorn server.app:app
+  python app/app.py
+Deployed on Vercel: this file's location (app/app.py, exposing a
+top-level `app` Flask instance) is auto-detected, no extra config needed.
 """
 import functools
 import json

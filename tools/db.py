@@ -2,7 +2,7 @@
 (data/ledger.db) for local development; if DATABASE_URL is set (the
 hosted deployment), connects to that Postgres database instead. Both
 paths expose the same '?'-placeholder, dict-row-returning interface so
-the pipeline scripts (extract/categorize/match) and server/app.py don't
+the pipeline scripts (extract/categorize/match) and app/app.py don't
 need to know which backend they're talking to.
 
 Never commit the resulting .db file -- it holds real financial data, see

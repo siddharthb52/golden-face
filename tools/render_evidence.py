@@ -1,6 +1,6 @@
 """Renders a receipt/check file (image or PDF) to JPEG bytes at either
 thumbnail or full-view size. Shared by scripts/build_ledger_dashboard.py
-(the static, local-only build) and server/app.py (the hosted deployment's
+(the static, local-only build) and app/app.py (the hosted deployment's
 on-demand /evidence route), so both produce the same-looking images from
 one place.
 """
