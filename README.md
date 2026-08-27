@@ -71,7 +71,7 @@ end up holding real financial data once built. Rebuilding is cheap: rerun
 `server/app.py` serves the same dashboard live from a database, behind a
 login, instead of a static file you build and open locally. Use this when
 the dashboard needs to be reachable at a URL by people other than you. The
-deployment stack is Render (runs the app), Neon (Postgres), and Cloudflare
+deployment stack is Vercel (runs the app), Neon (Postgres), and Cloudflare
 (DNS/CDN in front of the domain, plus R2 for storing the receipt/check
 files themselves).
 
@@ -97,7 +97,10 @@ files themselves).
 5. Create a Cloudflare R2 bucket and an R2 API token (Cloudflare dashboard
    -> R2 -> Manage R2 API Tokens), then set `R2_ACCOUNT_ID`,
    `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME` in
-   `.env`. Upload the existing receipt/check files once:
+   `.env`. Upload the existing receipt/check files once (this also
+   pre-renders each file's thumbnail and full-size preview locally and
+   uploads those too, so the hosted server never has to do that CPU-bound
+   work per-request):
    ```
    python scripts/upload_evidence_to_r2.py
    ```
@@ -110,17 +113,24 @@ files themselves).
    python server/app.py
    ```
    and open `http://localhost:5000`.
-7. To deploy: push to Render, set `ANTHROPIC_API_KEY`, `DATABASE_URL`,
-   `DASHBOARD_PASSWORD_HASH`, `SESSION_SECRET_KEY`, and the four `R2_*`
-   variables there, and point Render's start command at the included
-   `Procfile` (`gunicorn server.app:app`). Then point a domain at it
-   through Cloudflare for HTTPS/CDN.
+7. To deploy: import the repo into Vercel. `pyproject.toml`'s
+   `[tool.vercel] entrypoint` tells Vercel where the Flask `app` object
+   lives (`server/app.py`); no `Procfile` or gunicorn needed, Vercel runs
+   the WSGI app directly as a Vercel Function. Set `ANTHROPIC_API_KEY`,
+   `DATABASE_URL`, `DASHBOARD_PASSWORD_HASH`, `SESSION_SECRET_KEY`, and
+   the four `R2_*` variables in the project's Environment Variables
+   settings. Then point a domain at it through Cloudflare for HTTPS/CDN.
 
 The hosted app is intentionally not indexable (`robots.txt`, `noindex`
 headers) and rate-limits login attempts, but a shared password over the
 open internet is still weaker than per-person accounts -- treat the
 password itself as sensitive, and rotate it if it's ever shared beyond the
-people who should have it.
+people who should have it. Note that on Vercel specifically, the login
+rate limit relies on in-memory state that Vercel's Fluid compute doesn't
+strictly guarantee is shared across every request (it usually is, for a
+low-traffic app, since idle instances get reused, but it's not a hard
+guarantee the way it was on a single persistent server process) -- the
+real protection is still the password hash itself, not the rate limit.
 
 Admin features (editing transactions, uploading evidence from the browser)
 aren't built yet -- this is read-only. Corrections still happen the same

@@ -150,7 +150,12 @@ def evidence(txn_id, size):
 
     key = row["evidence_file"]
     if r2.is_configured():
-        data, mimetype = render_evidence_bytes(r2.fetch_object(key), Path(key).suffix, size)
+        try:
+            # Pre-rendered by scripts/upload_evidence_to_r2.py -- avoids
+            # doing CPU-bound PDF rendering on every request.
+            return Response(r2.fetch_object(f"{key}.{size}.jpg"), mimetype="image/jpeg")
+        except r2.NotFound:
+            data, mimetype = render_evidence_bytes(r2.fetch_object(key), Path(key).suffix, size)
     else:
         data, mimetype = render_evidence(ROOT / key, size)
     return Response(data, mimetype=mimetype)

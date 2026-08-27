@@ -28,9 +28,20 @@ def _client():
     )
 
 
+class NotFound(Exception):
+    """Raised by fetch_object when the key doesn't exist in the bucket."""
+
+
 def fetch_object(key):
-    """Returns the raw bytes stored at `key` in the configured bucket."""
-    obj = _client().get_object(Bucket=os.environ["R2_BUCKET_NAME"], Key=key)
+    """Returns the raw bytes stored at `key` in the configured bucket.
+    Raises NotFound if the key doesn't exist."""
+    from botocore.exceptions import ClientError
+    try:
+        obj = _client().get_object(Bucket=os.environ["R2_BUCKET_NAME"], Key=key)
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") in ("NoSuchKey", "404"):
+            raise NotFound(key) from e
+        raise
     return obj["Body"].read()
 
 
