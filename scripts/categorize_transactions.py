@@ -18,25 +18,12 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from db import get_connection  # noqa: E402
+from constants import KNOWN_SUBCATEGORIES, REPORTING_CATEGORIES, STATUSES  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
 MODEL = "claude-opus-5"
-
-KNOWN_SUBCATEGORIES = [
-    "Architecture", "Bank Charges", "Construction Supplies",
-    "Documentation / Photography", "Ecological Inputs", "Failed Bank Transfer",
-    "Fencing Infrastructure", "Fencing Labour", "Field Labour",
-    "Food & Hospitality", "Food & Welfare", "Gate / Welding Infrastructure",
-    "Guest Logistics", "Infrastructure", "Institutional Learning",
-    "Intern Accommodation", "Internship / Student Support",
-    "Irrigation Infrastructure", "Local Travel & Logistics", "Painting Labour",
-    "Painting Material", "Plantation Event Support",
-    "Professional Travel / Stay / Food", "Research / Field Support",
-    "Salary / Field Staff", "Sapling Logistics", "Saplings Procurement",
-    "Site Development", "Travel & Logistics", "Treasury Movement", "Utilities",
-]
 
 SYSTEM_PROMPT = f"""You categorize transactions from the bank account of Sri Swarnamukhi \
 Ashrama (SSA), a charitable trust, using only the information given for each transaction \
@@ -93,15 +80,13 @@ CATEGORIZATION_SCHEMA = {
                     "id": {"type": "integer"},
                     "reporting_category": {
                         "type": "string",
-                        "enum": ["2A - Phase-0 Pragya", "2B - Architecture", "2C - Operating/Admin",
-                                  "Internal Transfer", "Reversal", "Income"],
+                        "enum": REPORTING_CATEGORIES,
                     },
                     "sub_category": {"type": "string"},
                     "expense_included": {"type": "boolean"},
                     "status": {
                         "type": "string",
-                        "enum": ["Supported", "Purpose confirmation recommended",
-                                  "Purpose support to attach", "Support note recommended", "Reversed"],
+                        "enum": STATUSES,
                     },
                     "purpose": {"type": "string"},
                 },

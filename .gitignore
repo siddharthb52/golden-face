@@ -9,3 +9,14 @@ __pycache__/
 data/real_docs/
 data/ledger.db
 dashboard/ledger.html
+
+# Evidence files uploaded through the admin interface when running locally
+# without R2 configured (tools/r2.py) -- same real-data sensitivity as
+# data/real_docs/ above.
+data/uploaded/
+
+# Generated demo data/output (fabricated, not sensitive -- excluded just
+# for consistency with the rule above, not because it needs protecting).
+data/demo/ledger_demo.db
+data/demo/evidence/
+dashboard/demo_ledger.html

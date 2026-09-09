@@ -43,6 +43,17 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (txn_date);
 CREATE INDEX IF NOT EXISTS idx_transactions_neft_code ON transactions (neft_inb_code);
+
+CREATE TABLE IF NOT EXISTS edit_history (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    txn_id              INTEGER NOT NULL,
+    field               TEXT NOT NULL,
+    old_value           TEXT,
+    new_value           TEXT,
+    edited_by           TEXT NOT NULL,
+    edited_at           TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_edit_history_txn ON edit_history (txn_id);
 """
 
 POSTGRES_SCHEMA = """
@@ -70,6 +81,17 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (txn_date);
 CREATE INDEX IF NOT EXISTS idx_transactions_neft_code ON transactions (neft_inb_code);
+
+CREATE TABLE IF NOT EXISTS edit_history (
+    id                  SERIAL PRIMARY KEY,
+    txn_id              INTEGER NOT NULL,
+    field               TEXT NOT NULL,
+    old_value           TEXT,
+    new_value           TEXT,
+    edited_by           TEXT NOT NULL,
+    edited_at           TEXT NOT NULL DEFAULT (NOW()::text)
+);
+CREATE INDEX IF NOT EXISTS idx_edit_history_txn ON edit_history (txn_id);
 """
 
 

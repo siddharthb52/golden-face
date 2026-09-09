@@ -69,6 +69,23 @@
   .thumb-empty { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 0.7rem; border: 1px dashed var(--border); border-radius: 6px; }
   .empty-state { text-align: center; padding: 30px; color: var(--ink-faint); }
 
+  /* admin editing */
+  .editable { cursor: pointer; }
+  .editable:hover { outline: 1px dashed var(--ink-faint); outline-offset: -2px; }
+  .admin-edit-input { font: inherit; font-size: 0.8rem; padding: 3px 6px; border: 1px solid var(--forest); border-radius: 4px; width: 100%; box-sizing: border-box; background: var(--surface); color: var(--ink); }
+  .proof-wrap { position: relative; display: inline-block; }
+  .proof-replace { position: absolute; bottom: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--ink-muted); cursor: pointer; font-size: 0.7rem; line-height: 1; padding: 0; }
+  .thumb-upload { width: 44px; height: 44px; border: 1px dashed var(--forest); border-radius: 6px; background: var(--surface); color: var(--forest); font-size: 0.62rem; cursor: pointer; }
+  .btn-solid { background: var(--forest-deep); border-color: var(--forest-deep); color: #fff; }
+  .btn-solid:hover { border-color: var(--forest-deep); color: #fff; opacity: 0.9; }
+  .edit-link { margin-top: 12px; }
+  .admin-form { display: flex; flex-direction: column; gap: 10px; }
+  .admin-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: var(--ink-muted); }
+  .admin-form input, .admin-form select, .admin-form textarea { font: inherit; font-size: 0.85rem; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); }
+  .admin-form textarea { min-height: 60px; resize: vertical; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+  .form-error { color: var(--red); font-size: 0.8rem; margin: 6px 0 0; }
+
   /* lightbox */
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 50; cursor: zoom-out; }
   .lightbox.visible { display: flex; }
@@ -92,7 +109,15 @@
       <span class="filter-label">Category</span>
       <div class="filter-group" id="category-filters"></div>
     </div>
+    <div class="filter-block">
+      <span class="filter-label">Date Range</span>
+      <input class="search" id="date-start" type="date" aria-label="Start date">
+      <span style="color:var(--ink-faint)">&ndash;</span>
+      <input class="search" id="date-end" type="date" aria-label="End date">
+    </div>
     <input class="search" id="search" type="text" placeholder="Search...">
+    <button class="chip btn-solid" id="export-pdf-btn" hidden>Export PDF</button>
+    <button class="chip btn-solid" id="add-txn-btn" hidden>+ Add Transaction</button>
   </div>
 
   <section class="panel">
@@ -119,15 +144,57 @@
 
   <div class="lightbox" id="lightbox"><img id="lightbox-img" src="" alt=""></div>
   <div class="lightbox" id="narration-lightbox">
-    <div class="narration-box">
-      <p class="narration-label">Bank Narration (raw, unedited)</p>
+    <div class="narration-box" onclick="event.stopPropagation()">
+      <p class="narration-label">Purpose</p>
+      <div id="purpose-text"></div>
+      <div id="purpose-edit-area" hidden>
+        <textarea id="purpose-edit-input" style="width:100%; box-sizing:border-box; min-height:70px; font:inherit; font-size:0.85rem; padding:8px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--ink);"></textarea>
+        <div class="modal-actions">
+          <button class="chip btn-solid" id="purpose-save-btn">Save</button>
+          <button class="chip" id="purpose-cancel-btn">Cancel</button>
+        </div>
+      </div>
+      <button class="chip edit-link" id="purpose-edit-btn" hidden>Edit purpose</button>
+      <p class="narration-label" style="margin-top:16px;">Bank Narration (raw, unedited)</p>
       <div id="narration-text"></div>
     </div>
   </div>
+  <div class="lightbox" id="add-txn-lightbox">
+    <div class="narration-box" onclick="event.stopPropagation()" style="text-align:left;">
+      <p class="narration-label">Add Transaction</p>
+      <form id="add-txn-form" class="admin-form">
+        <label>Date <input type="date" name="txn_date" required></label>
+        <label>Direction
+          <select name="direction" required>
+            <option value="debit">Debit</option>
+            <option value="credit">Credit</option>
+          </select>
+        </label>
+        <label>Amount <input type="number" name="amount" step="0.01" min="0" required></label>
+        <label>To <input type="text" name="to_party"></label>
+        <label>From <input type="text" name="from_party"></label>
+        <label>Category <select name="reporting_category" required></select></label>
+        <label>Sub-category <input type="text" name="sub_category" list="subcategory-list"></label>
+        <label>Status <select name="status" required></select></label>
+        <label>Purpose <textarea name="purpose" required></textarea></label>
+        <div class="modal-actions">
+          <button type="submit" class="chip btn-solid">Create</button>
+          <button type="button" class="chip" id="add-txn-cancel-btn">Cancel</button>
+        </div>
+        <p class="form-error" id="add-txn-error" hidden></p>
+      </form>
+    </div>
+  </div>
+  <datalist id="subcategory-list"></datalist>
 </main>
 
 <script>
 const TRANSACTIONS = /*__TRANSACTIONS_JSON__*/;
+const IS_ADMIN = /*__IS_ADMIN__*/;
+const HAS_BACKEND = /*__HAS_BACKEND__*/;
+const REPORTING_CATEGORIES = /*__REPORTING_CATEGORIES_JSON__*/;
+const STATUSES = /*__STATUSES_JSON__*/;
+const SUBCATEGORIES = /*__SUBCATEGORIES_JSON__*/;
 
 const CATEGORY_COLOR = {
   "2A - Phase-0 Pragya": "var(--forest)",
@@ -141,27 +208,65 @@ const CATEGORY_COLOR = {
 const fmtINR = n => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
-(function renderKPIs() {
-  const debits = TRANSACTIONS.filter(t => t.direction === "debit" && t.expense_included);
-  const credits = TRANSACTIONS.filter(t => t.direction === "credit" && t.reporting_category === "Income");
-  const withEvidence = TRANSACTIONS.filter(t => t.thumbnail);
+function renderKPIs(rows) {
+  const debits = rows.filter(t => t.direction === "debit" && t.expense_included);
+  const credits = rows.filter(t => t.direction === "credit" && t.reporting_category === "Income");
+  const withEvidence = rows.filter(t => t.thumbnail);
   const income = credits.reduce((s, t) => s + t.amount, 0);
   const expenses = debits.reduce((s, t) => s + t.amount, 0);
   const tiles = [
     { label: "Income", value: fmtINR(income) },
     { label: "Expenses", value: fmtINR(expenses) },
     { label: "Current Balance", value: fmtINR(income - expenses) },
-    { label: "With Matched Proof", value: `${withEvidence.length} / ${TRANSACTIONS.length}` },
+    { label: "With Matched Proof", value: `${withEvidence.length} / ${rows.length}` },
   ];
   document.getElementById("kpi-row").innerHTML = tiles.map(t => `
     <div class="kpi-tile"><p class="kpi-label">${t.label}</p><p class="kpi-value">${t.value}</p></div>
   `).join("");
-})();
+}
+
+function categoryPill(t) {
+  return t.reporting_category
+    ? `<span class="pill" style="background:${CATEGORY_COLOR[t.reporting_category] || "var(--ink-faint)"}">${t.reporting_category}</span>`
+    : "—";
+}
+
+function statusPill(t) {
+  return t.status ? `<span class="status-pill ${t.status === "Supported" ? "supported" : ""}">${t.status}</span>` : "—";
+}
+
+function proofCellHTML(t) {
+  if (t.thumbnail) {
+    const replace = IS_ADMIN ? `<button class="proof-replace" data-id="${t.id}" title="Replace proof">&#8635;</button>` : "";
+    return `<span class="proof-wrap"><img class="thumb" src="${t.thumbnail}" data-full="${t.full_image || t.thumbnail}" alt="receipt">${replace}</span>`;
+  }
+  if (IS_ADMIN) return `<button class="thumb-upload" data-id="${t.id}">+ Upload</button>`;
+  return `<span class="thumb-empty">—</span>`;
+}
+
+async function saveAdminEdit(id, fields) {
+  try {
+    const res = await fetch(`/admin/transactions/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) { console.error(data.error || "Save failed"); return false; }
+    const t = TRANSACTIONS.find(x => x.id == id);
+    Object.assign(t, data.fields);
+    return true;
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
+}
 
 let activeDirection = "all";
 let activeCategory = "all";
 let sortKey = "txn_date";
 let sortDir = 1;
+let lastRenderedRows = [];
 
 function renderFilters() {
   const dirHTML = ["all", "debit", "credit"].map(d => `
@@ -185,6 +290,8 @@ function renderFilters() {
     renderTable();
   }));
   document.getElementById("search").addEventListener("input", renderTable);
+  document.getElementById("date-start").addEventListener("input", renderTable);
+  document.getElementById("date-end").addEventListener("input", renderTable);
 
   document.querySelectorAll("thead th[data-sort]").forEach(th => th.addEventListener("click", () => {
     const key = th.dataset.sort;
@@ -194,22 +301,35 @@ function renderFilters() {
     th.querySelector(".arrow").textContent = sortDir === 1 ? "↑" : "↓";
     renderTable();
   }));
+
+  if (IS_ADMIN) document.getElementById("add-txn-btn").hidden = false;
+  if (HAS_BACKEND) document.getElementById("export-pdf-btn").hidden = false;
 }
 
-function renderTable() {
+function getFilteredRows() {
   const q = document.getElementById("search").value.trim().toLowerCase();
+  const startDate = document.getElementById("date-start").value;
+  const endDate = document.getElementById("date-end").value;
   let rows = TRANSACTIONS
     .filter(t => activeDirection === "all" || t.direction === activeDirection)
     .filter(t => activeCategory === "all" || t.reporting_category === activeCategory)
+    .filter(t => !startDate || t.txn_date >= startDate)
+    .filter(t => !endDate || t.txn_date <= endDate)
     .filter(t => !q || [t.to_party, t.from_party, t.bank_narration, t.purpose].some(f => (f || "").toLowerCase().includes(q)));
 
-  rows = rows.slice().sort((a, b) => {
+  return rows.slice().sort((a, b) => {
     const av = a[sortKey], bv = b[sortKey];
     if (av === bv) return 0;
     if (av === null || av === undefined) return 1;
     if (bv === null || bv === undefined) return -1;
     return (av > bv ? 1 : -1) * sortDir;
   });
+}
+
+function renderTable() {
+  const rows = getFilteredRows();
+  lastRenderedRows = rows;
+  renderKPIs(rows);
 
   document.getElementById("empty-state").hidden = rows.length > 0;
 
@@ -219,17 +339,24 @@ function renderTable() {
       <td>${t.to_party || "—"}</td>
       <td>${t.from_party || "—"}</td>
       <td class="cell-amount ${t.direction}">${t.direction === "credit" ? "+" : "−"}${fmtINR(t.amount)}</td>
-      <td>${t.reporting_category ? `<span class="pill" style="background:${CATEGORY_COLOR[t.reporting_category] || "var(--ink-faint)"}">${t.reporting_category}</span>` : "—"}</td>
-      <td>${t.sub_category || "—"}</td>
-      <td>${t.status ? `<span class="status-pill ${t.status === "Supported" ? "supported" : ""}">${t.status}</span>` : "—"}</td>
+      <td${IS_ADMIN ? ` class="editable" data-edit="reporting_category" data-id="${t.id}"` : ""}>${categoryPill(t)}</td>
+      <td${IS_ADMIN ? ` class="editable" data-edit="sub_category" data-id="${t.id}"` : ""}>${t.sub_category || "—"}</td>
+      <td${IS_ADMIN ? ` class="editable" data-edit="status" data-id="${t.id}"` : ""}>${statusPill(t)}</td>
       <td class="narration" data-narration-idx="${t.id}">${t.purpose || t.bank_narration || ""}</td>
-      <td>${t.thumbnail
-        ? `<img class="thumb" src="${t.thumbnail}" data-full="${t.full_image || t.thumbnail}" alt="receipt">`
-        : `<span class="thumb-empty">—</span>`}</td>
+      <td>${proofCellHTML(t)}</td>
     </tr>`).join("");
 
+  attachRowHandlers();
+}
+
+function attachRowHandlers() {
   document.querySelectorAll(".narration").forEach(cell => cell.addEventListener("click", () => {
     const t = TRANSACTIONS.find(x => x.id == cell.dataset.narrationIdx);
+    document.getElementById("purpose-text").textContent = t.purpose || "(no purpose recorded)";
+    document.getElementById("purpose-text").hidden = false;
+    document.getElementById("purpose-edit-area").hidden = true;
+    document.getElementById("purpose-edit-btn").hidden = !IS_ADMIN;
+    document.getElementById("purpose-edit-btn").dataset.id = t.id;
     document.getElementById("narration-text").textContent = t.bank_narration || "(no narration text)";
     document.getElementById("narration-lightbox").classList.add("visible");
   }));
@@ -238,15 +365,188 @@ function renderTable() {
     document.getElementById("lightbox-img").src = img.dataset.full;
     document.getElementById("lightbox").classList.add("visible");
   }));
+
+  if (!IS_ADMIN) return;
+
+  document.querySelectorAll("[data-edit]").forEach(cell => cell.addEventListener("click", function handler() {
+    if (cell.querySelector("select, input")) return;
+    const field = cell.dataset.edit;
+    const id = cell.dataset.id;
+    const t = TRANSACTIONS.find(x => x.id == id);
+    let input;
+    if (field === "reporting_category") {
+      input = document.createElement("select");
+      REPORTING_CATEGORIES.forEach(c => input.add(new Option(c, c, false, c === t.reporting_category)));
+    } else if (field === "status") {
+      input = document.createElement("select");
+      STATUSES.forEach(s => input.add(new Option(s, s, false, s === t.status)));
+    } else {
+      input = document.createElement("input");
+      input.type = "text";
+      input.value = t.sub_category || "";
+      input.setAttribute("list", "subcategory-list");
+    }
+    input.className = "admin-edit-input";
+    cell.innerHTML = "";
+    cell.appendChild(input);
+    input.focus();
+
+    let settled = false;
+    const commit = async () => {
+      if (settled) return;
+      settled = true;
+      await saveAdminEdit(id, { [field]: input.value });
+      renderTable();
+    };
+    const cancel = () => {
+      if (settled) return;
+      settled = true;
+      renderTable();
+    };
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      if (e.key === "Escape") { e.preventDefault(); cancel(); }
+    });
+  }));
+
+  document.querySelectorAll(".thumb-upload, .proof-replace").forEach(btn => btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const id = btn.dataset.id;
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".pdf,.jpg,.jpeg,.png";
+    fileInput.addEventListener("change", async () => {
+      if (!fileInput.files[0]) return;
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      try {
+        const res = await fetch(`/admin/transactions/${id}/evidence`, { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok) { console.error(data.error || "Upload failed"); return; }
+        const t = TRANSACTIONS.find(x => x.id == id);
+        const bust = `?v=${Date.now()}`;
+        t.thumbnail = data.thumbnail + bust;
+        t.full_image = data.full_image + bust;
+        renderTable();
+      } catch (err) { console.error(err); }
+    });
+    fileInput.click();
+  }));
 }
 
 document.getElementById("narration-lightbox").addEventListener("click", () => {
   document.getElementById("narration-lightbox").classList.remove("visible");
 });
 
+document.getElementById("purpose-edit-btn").addEventListener("click", () => {
+  const t = TRANSACTIONS.find(x => x.id == document.getElementById("purpose-edit-btn").dataset.id);
+  document.getElementById("purpose-edit-input").value = t.purpose || "";
+  document.getElementById("purpose-text").hidden = true;
+  document.getElementById("purpose-edit-area").hidden = false;
+});
+document.getElementById("purpose-cancel-btn").addEventListener("click", () => {
+  document.getElementById("purpose-edit-area").hidden = true;
+  document.getElementById("purpose-text").hidden = false;
+});
+document.getElementById("purpose-save-btn").addEventListener("click", async () => {
+  const id = document.getElementById("purpose-edit-btn").dataset.id;
+  const newPurpose = document.getElementById("purpose-edit-input").value;
+  const ok = await saveAdminEdit(id, { purpose: newPurpose });
+  if (ok) {
+    document.getElementById("purpose-text").textContent = newPurpose || "(no purpose recorded)";
+    document.getElementById("purpose-edit-area").hidden = true;
+    document.getElementById("purpose-text").hidden = false;
+    renderTable();
+  }
+});
+
 document.getElementById("lightbox").addEventListener("click", () => {
   document.getElementById("lightbox").classList.remove("visible");
 });
+
+if (IS_ADMIN) {
+  const catSelect = document.querySelector('#add-txn-form [name="reporting_category"]');
+  REPORTING_CATEGORIES.forEach(c => catSelect.add(new Option(c, c)));
+  const statusSelect = document.querySelector('#add-txn-form [name="status"]');
+  STATUSES.forEach(s => statusSelect.add(new Option(s, s)));
+  document.getElementById("subcategory-list").innerHTML = SUBCATEGORIES.map(s => `<option value="${s}">`).join("");
+
+  document.getElementById("add-txn-btn").addEventListener("click", () => {
+    document.getElementById("add-txn-form").reset();
+    document.getElementById("add-txn-error").hidden = true;
+    document.getElementById("add-txn-lightbox").classList.add("visible");
+  });
+  document.getElementById("add-txn-cancel-btn").addEventListener("click", () => {
+    document.getElementById("add-txn-lightbox").classList.remove("visible");
+  });
+  document.getElementById("add-txn-lightbox").addEventListener("click", () => {
+    document.getElementById("add-txn-lightbox").classList.remove("visible");
+  });
+  document.getElementById("add-txn-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(e.target).entries());
+    payload.amount = parseFloat(payload.amount);
+    const errorEl = document.getElementById("add-txn-error");
+    errorEl.hidden = true;
+    try {
+      const res = await fetch("/admin/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.error || "Failed to create transaction."; errorEl.hidden = false; return; }
+      location.reload();
+    } catch (err) {
+      errorEl.textContent = "Network error.";
+      errorEl.hidden = false;
+    }
+  });
+}
+
+if (HAS_BACKEND) {
+  document.getElementById("export-pdf-btn").addEventListener("click", async () => {
+    const ids = lastRenderedRows.map(t => t.id);
+    if (!ids.length) return;
+    const parts = [];
+    if (activeDirection !== "all") parts.push(activeDirection === "credit" ? "Credits only" : "Debits only");
+    if (activeCategory !== "all") parts.push(`Category: ${activeCategory}`);
+    const startDate = document.getElementById("date-start").value;
+    const endDate = document.getElementById("date-end").value;
+    if (startDate || endDate) parts.push(`${startDate ? fmtDate(startDate) : "Start"} – ${endDate ? fmtDate(endDate) : "Present"}`);
+    const q = document.getElementById("search").value.trim();
+    if (q) parts.push(`Search: "${q}"`);
+    const filterSummary = parts.length ? parts.join(" · ") : "All transactions";
+
+    const btn = document.getElementById("export-pdf-btn");
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = "Exporting…";
+    try {
+      const res = await fetch("/export/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, filter_summary: filterSummary }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "golden-face-ledger.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
+}
 
 renderFilters();
 renderTable();

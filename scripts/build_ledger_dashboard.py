@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
+from constants import KNOWN_SUBCATEGORIES, REPORTING_CATEGORIES, STATUSES  # noqa: E402
 from render_evidence import render_evidence  # noqa: E402
 
 DB_PATH = ROOT / "data" / "ledger.db"
@@ -60,6 +61,13 @@ def main():
 
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
     html = html.replace("/*__TRANSACTIONS_JSON__*/", json.dumps(rows, ensure_ascii=False))
+    # This static build has no backend to write edits/exports to -- admin
+    # editing and PDF export both stay off, this is a read-only snapshot.
+    html = html.replace("/*__IS_ADMIN__*/", "false")
+    html = html.replace("/*__HAS_BACKEND__*/", "false")
+    html = html.replace("/*__REPORTING_CATEGORIES_JSON__*/", json.dumps(REPORTING_CATEGORIES))
+    html = html.replace("/*__STATUSES_JSON__*/", json.dumps(STATUSES))
+    html = html.replace("/*__SUBCATEGORIES_JSON__*/", json.dumps(KNOWN_SUBCATEGORIES))
     OUTPUT_PATH.write_text(html, encoding="utf-8")
     print(f"Wrote {OUTPUT_PATH} ({len(rows)} transactions, {len(with_evidence)} with thumbnails)")
 
