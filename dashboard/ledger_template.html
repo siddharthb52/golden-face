@@ -76,6 +76,9 @@
   .proof-wrap { position: relative; display: inline-block; }
   .proof-replace { position: absolute; bottom: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--ink-muted); cursor: pointer; font-size: 0.7rem; line-height: 1; padding: 0; }
   .thumb-upload { width: 44px; height: 44px; border: 1px dashed var(--forest); border-radius: 6px; background: var(--surface); color: var(--forest); font-size: 0.62rem; cursor: pointer; }
+  .proof-remove { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--red); background: var(--surface); color: var(--red); cursor: pointer; font-size: 0.65rem; line-height: 1; padding: 0; }
+  .row-delete-btn { font: inherit; font-size: 0.72rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--red); background: var(--surface); color: var(--red); cursor: pointer; }
+  .row-delete-btn:hover { background: var(--red); color: #fff; }
   .btn-solid { background: var(--forest-deep); border-color: var(--forest-deep); color: #fff; }
   .btn-solid:hover { border-color: var(--forest-deep); color: #fff; opacity: 0.9; }
   .edit-link { margin-top: 12px; }
@@ -134,6 +137,7 @@
             <th data-sort="status">Status</th>
             <th>Purpose</th>
             <th>Proof</th>
+            <th id="actions-header" hidden>Actions</th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -155,7 +159,6 @@
         </div>
       </div>
       <button class="chip edit-link" id="purpose-edit-btn" hidden>Edit purpose</button>
-      <button class="chip edit-link" id="delete-txn-btn" hidden style="border-color:var(--red); color:var(--red); margin-left:8px;">Delete transaction</button>
       <p class="narration-label" style="margin-top:16px;">Bank Narration (raw, unedited)</p>
       <div id="narration-text"></div>
     </div>
@@ -238,8 +241,11 @@ function statusPill(t) {
 
 function proofCellHTML(t) {
   if (t.thumbnail) {
-    const replace = IS_ADMIN ? `<button class="proof-replace" data-id="${t.id}" title="Replace proof">&#8635;</button>` : "";
-    return `<span class="proof-wrap"><img class="thumb" src="${t.thumbnail}" data-full="${t.full_image || t.thumbnail}" alt="receipt">${replace}</span>`;
+    const adminControls = IS_ADMIN
+      ? `<button class="proof-replace" data-id="${t.id}" title="Replace proof">&#8635;</button>
+         <button class="proof-remove" data-id="${t.id}" title="Remove proof">&#10005;</button>`
+      : "";
+    return `<span class="proof-wrap"><img class="thumb" src="${t.thumbnail}" data-full="${t.full_image || t.thumbnail}" alt="receipt">${adminControls}</span>`;
   }
   if (IS_ADMIN) return `<button class="thumb-upload" data-id="${t.id}">+ Upload</button>`;
   return `<span class="thumb-empty">—</span>`;
@@ -328,7 +334,10 @@ function renderFilters() {
     renderTable();
   }));
 
-  if (IS_ADMIN) document.getElementById("add-txn-btn").hidden = false;
+  if (IS_ADMIN) {
+    document.getElementById("add-txn-btn").hidden = false;
+    document.getElementById("actions-header").hidden = false;
+  }
   if (HAS_BACKEND) document.getElementById("export-pdf-btn").hidden = false;
 }
 
@@ -370,6 +379,7 @@ function renderTable() {
       <td${IS_ADMIN ? ` class="editable" data-edit="status" data-id="${t.id}"` : ""}>${statusPill(t)}</td>
       <td class="narration" data-narration-idx="${t.id}">${t.purpose || t.bank_narration || ""}</td>
       <td>${proofCellHTML(t)}</td>
+      ${IS_ADMIN ? `<td><button class="row-delete-btn" data-id="${t.id}">Delete</button></td>` : ""}
     </tr>`).join("");
 
   attachRowHandlers();
@@ -383,8 +393,6 @@ function attachRowHandlers() {
     document.getElementById("purpose-edit-area").hidden = true;
     document.getElementById("purpose-edit-btn").hidden = !IS_ADMIN;
     document.getElementById("purpose-edit-btn").dataset.id = t.id;
-    document.getElementById("delete-txn-btn").hidden = !IS_ADMIN;
-    document.getElementById("delete-txn-btn").dataset.id = t.id;
     document.getElementById("narration-text").textContent = t.bank_narration || "(no narration text)";
     document.getElementById("narration-lightbox").classList.add("visible");
   }));
@@ -475,6 +483,37 @@ function attachRowHandlers() {
     });
     fileInput.click();
   }));
+
+  document.querySelectorAll(".proof-remove").forEach(btn => btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const id = btn.dataset.id;
+    if (!confirm("Remove this proof document? The transaction itself is kept.")) return;
+    try {
+      const res = await fetch(`/admin/transactions/${id}/evidence`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { console.error(data.error || "Remove failed"); return; }
+      const t = TRANSACTIONS.find(x => x.id == id);
+      t.thumbnail = null;
+      t.full_image = null;
+      renderTable();
+    } catch (err) { console.error(err); }
+  }));
+
+  document.querySelectorAll(".row-delete-btn").forEach(btn => btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const id = btn.dataset.id;
+    const t = TRANSACTIONS.find(x => x.id == id);
+    if (!t) return;
+    if (!confirm(`Permanently delete this transaction (${fmtDate(t.txn_date)}, ${fmtINR(t.amount)})? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/admin/transactions/${id}/delete`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { console.error(data.error || "Delete failed"); return; }
+      const idx = TRANSACTIONS.findIndex(x => x.id == id);
+      TRANSACTIONS.splice(idx, 1);
+      renderTable();
+    } catch (err) { console.error(err); }
+  }));
 }
 
 document.getElementById("narration-lightbox").addEventListener("click", () => {
@@ -508,24 +547,6 @@ document.getElementById("lightbox").addEventListener("click", () => {
 });
 
 if (IS_ADMIN) {
-  document.getElementById("delete-txn-btn").addEventListener("click", async () => {
-    const id = document.getElementById("delete-txn-btn").dataset.id;
-    const t = TRANSACTIONS.find(x => x.id == id);
-    if (!t) return;
-    if (!confirm(`Permanently delete this transaction (${fmtDate(t.txn_date)}, ${fmtINR(t.amount)})? This cannot be undone.`)) return;
-    try {
-      const res = await fetch(`/admin/transactions/${id}/delete`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) { console.error(data.error || "Delete failed"); return; }
-      const idx = TRANSACTIONS.findIndex(x => x.id == id);
-      TRANSACTIONS.splice(idx, 1);
-      document.getElementById("narration-lightbox").classList.remove("visible");
-      renderTable();
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
   const catSelect = document.querySelector('#add-txn-form [name="reporting_category"]');
   REPORTING_CATEGORIES.forEach(c => catSelect.add(new Option(c, c)));
   const statusSelect = document.querySelector('#add-txn-form [name="status"]');

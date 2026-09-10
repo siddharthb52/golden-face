@@ -391,6 +391,35 @@ def admin_upload_evidence(txn_id):
     })
 
 
+@app.route("/admin/transactions/<int:txn_id>/evidence", methods=["DELETE"])
+@role_required("admin")
+def admin_remove_evidence(txn_id):
+    """Clears the proof reference on the transaction without touching the
+    transaction itself. Doesn't delete the underlying file from R2/local
+    storage -- just the two columns pointing at it -- keeping this cheap
+    and matching the rest of this route group's behavior of never quietly
+    destroying storage state."""
+    conn = get_connection()
+    row = conn.execute("SELECT id, evidence_file FROM transactions WHERE id = ?", (txn_id,)).fetchone()
+    if not row:
+        conn.close()
+        abort(404)
+    if not row["evidence_file"]:
+        conn.close()
+        return jsonify({"error": "No proof to remove."}), 400
+
+    old_value = row["evidence_file"]
+    conn.execute(
+        "UPDATE transactions SET evidence_file = NULL, evidence_source = NULL, "
+        "updated_at = datetime('now') WHERE id = ?",
+        (txn_id,),
+    )
+    _log_edit(conn, txn_id, "evidence_file", old_value, None)
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
 @app.route("/admin/transactions/<int:txn_id>/delete", methods=["POST"])
 @role_required("admin")
 def admin_delete_transaction(txn_id):
