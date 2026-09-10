@@ -16,12 +16,14 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+# Must run before `from db import ...` below -- db.py reads DATABASE_URL
+# from os.environ at import time, so .env has to be loaded first or this
+# silently falls back to local sqlite even with DATABASE_URL set.
+load_dotenv(ROOT / ".env")
 from db import get_connection  # noqa: E402
 from constants import KNOWN_SUBCATEGORIES, REPORTING_CATEGORIES, STATUSES  # noqa: E402
-
-ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
 
 MODEL = "claude-opus-5"
 
