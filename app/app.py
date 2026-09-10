@@ -202,11 +202,19 @@ def logout():
 @app.route("/")
 @login_required
 def dashboard():
+    is_admin = session.get("role") == "admin"
     conn = get_connection()
-    rows = [dict(r) for r in conn.execute("SELECT * FROM transactions ORDER BY txn_date, id")]
+    rows = [dict(r) for r in conn.execute(
+        "SELECT * FROM transactions WHERE deleted_at IS NULL ORDER BY txn_date, id"
+    )]
+    deleted_rows = []
+    if is_admin:
+        deleted_rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM transactions WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC"
+        )]
     conn.close()
 
-    for r in rows:
+    for r in rows + deleted_rows:
         if r.get("evidence_file"):
             r["thumbnail"] = url_for("evidence", txn_id=r["id"], size="thumb")
             r["full_image"] = url_for("evidence", txn_id=r["id"], size="full")
@@ -215,7 +223,8 @@ def dashboard():
 
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
     html = html.replace("/*__TRANSACTIONS_JSON__*/", json.dumps(rows, ensure_ascii=False))
-    html = html.replace("/*__IS_ADMIN__*/", "true" if session.get("role") == "admin" else "false")
+    html = html.replace("/*__DELETED_TRANSACTIONS_JSON__*/", json.dumps(deleted_rows, ensure_ascii=False))
+    html = html.replace("/*__IS_ADMIN__*/", "true" if is_admin else "false")
     html = html.replace("/*__HAS_BACKEND__*/", "true")
     html = html.replace("/*__REPORTING_CATEGORIES_JSON__*/", json.dumps(REPORTING_CATEGORIES))
     html = html.replace("/*__STATUSES_JSON__*/", json.dumps(STATUSES))
@@ -261,9 +270,11 @@ def export_pdf():
     conn = get_connection()
     placeholders = ",".join("?" for _ in ids)
     rows = [dict(r) for r in conn.execute(
-        f"SELECT * FROM transactions WHERE id IN ({placeholders})", tuple(ids)
+        f"SELECT * FROM transactions WHERE id IN ({placeholders}) AND deleted_at IS NULL", tuple(ids)
     )]
     conn.close()
+    if not rows:
+        return jsonify({"error": "No transactions to export."}), 400
 
     order = {txn_id: i for i, txn_id in enumerate(ids)}
     rows.sort(key=lambda r: order.get(r["id"], len(ids)))
@@ -386,6 +397,54 @@ def admin_upload_evidence(txn_id):
         "thumbnail": url_for("evidence", txn_id=txn_id, size="thumb"),
         "full_image": url_for("evidence", txn_id=txn_id, size="full"),
     })
+
+
+@app.route("/admin/transactions/<int:txn_id>/delete", methods=["POST"])
+@role_required("admin")
+def admin_delete_transaction(txn_id):
+    """Soft delete -- sets deleted_at rather than removing the row, so a
+    mistaken delete on a real bank-extracted transaction is recoverable and
+    edit_history stays meaningful. Hidden from the dashboard/KPIs/exports
+    (see the WHERE deleted_at IS NULL filters), but never actually gone."""
+    conn = get_connection()
+    row = conn.execute("SELECT id, deleted_at FROM transactions WHERE id = ?", (txn_id,)).fetchone()
+    if not row:
+        conn.close()
+        abort(404)
+    if row["deleted_at"]:
+        conn.close()
+        return jsonify({"error": "Already deleted."}), 400
+
+    conn.execute(
+        "UPDATE transactions SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ?",
+        (txn_id,),
+    )
+    _log_edit(conn, txn_id, "deleted_at", None, "deleted")
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/admin/transactions/<int:txn_id>/restore", methods=["POST"])
+@role_required("admin")
+def admin_restore_transaction(txn_id):
+    conn = get_connection()
+    row = conn.execute("SELECT id, deleted_at FROM transactions WHERE id = ?", (txn_id,)).fetchone()
+    if not row:
+        conn.close()
+        abort(404)
+    if not row["deleted_at"]:
+        conn.close()
+        return jsonify({"error": "Not deleted."}), 400
+
+    conn.execute(
+        "UPDATE transactions SET deleted_at = NULL, updated_at = datetime('now') WHERE id = ?",
+        (txn_id,),
+    )
+    _log_edit(conn, txn_id, "deleted_at", "deleted", None)
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

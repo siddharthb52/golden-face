@@ -40,7 +40,9 @@ def render_images(evidence_path):
 def main():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    rows = [dict(r) for r in conn.execute("SELECT * FROM transactions ORDER BY txn_date, id")]
+    rows = [dict(r) for r in conn.execute(
+        "SELECT * FROM transactions WHERE deleted_at IS NULL ORDER BY txn_date, id"
+    )]
     conn.close()
 
     print(f"Loaded {len(rows)} transactions.")
@@ -63,6 +65,7 @@ def main():
     html = html.replace("/*__TRANSACTIONS_JSON__*/", json.dumps(rows, ensure_ascii=False))
     # This static build has no backend to write edits/exports to -- admin
     # editing and PDF export both stay off, this is a read-only snapshot.
+    html = html.replace("/*__DELETED_TRANSACTIONS_JSON__*/", "[]")
     html = html.replace("/*__IS_ADMIN__*/", "false")
     html = html.replace("/*__HAS_BACKEND__*/", "false")
     html = html.replace("/*__REPORTING_CATEGORIES_JSON__*/", json.dumps(REPORTING_CATEGORIES))

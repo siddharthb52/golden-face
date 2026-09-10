@@ -118,6 +118,7 @@
     <input class="search" id="search" type="text" placeholder="Search...">
     <button class="chip btn-solid" id="export-pdf-btn" hidden>Export PDF</button>
     <button class="chip btn-solid" id="add-txn-btn" hidden>+ Add Transaction</button>
+    <button class="chip" id="deleted-btn" hidden>Deleted (0)</button>
   </div>
 
   <section class="panel">
@@ -155,8 +156,15 @@
         </div>
       </div>
       <button class="chip edit-link" id="purpose-edit-btn" hidden>Edit purpose</button>
+      <button class="chip edit-link" id="delete-txn-btn" hidden style="border-color:var(--red); color:var(--red); margin-left:8px;">Delete transaction</button>
       <p class="narration-label" style="margin-top:16px;">Bank Narration (raw, unedited)</p>
       <div id="narration-text"></div>
+    </div>
+  </div>
+  <div class="lightbox" id="deleted-lightbox">
+    <div class="narration-box" onclick="event.stopPropagation()" style="text-align:left; min-width:420px;">
+      <p class="narration-label">Deleted Transactions</p>
+      <div id="deleted-list"></div>
     </div>
   </div>
   <div class="lightbox" id="add-txn-lightbox">
@@ -190,6 +198,7 @@
 
 <script>
 const TRANSACTIONS = /*__TRANSACTIONS_JSON__*/;
+const DELETED_TRANSACTIONS = /*__DELETED_TRANSACTIONS_JSON__*/;
 const IS_ADMIN = /*__IS_ADMIN__*/;
 const HAS_BACKEND = /*__HAS_BACKEND__*/;
 const REPORTING_CATEGORIES = /*__REPORTING_CATEGORIES_JSON__*/;
@@ -327,8 +336,51 @@ function renderFilters() {
     renderTable();
   }));
 
-  if (IS_ADMIN) document.getElementById("add-txn-btn").hidden = false;
+  if (IS_ADMIN) {
+    document.getElementById("add-txn-btn").hidden = false;
+    document.getElementById("deleted-btn").hidden = false;
+    updateDeletedBtn();
+  }
   if (HAS_BACKEND) document.getElementById("export-pdf-btn").hidden = false;
+}
+
+function updateDeletedBtn() {
+  document.getElementById("deleted-btn").textContent = `Deleted (${DELETED_TRANSACTIONS.length})`;
+}
+
+function renderDeletedList() {
+  const list = document.getElementById("deleted-list");
+  if (!DELETED_TRANSACTIONS.length) {
+    list.innerHTML = `<p style="color:var(--ink-faint); font-size:0.85rem;">No deleted transactions.</p>`;
+    return;
+  }
+  list.innerHTML = DELETED_TRANSACTIONS.map(t => `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+      <div style="font-size:0.8rem;">
+        <div>${fmtDate(t.txn_date)} &middot; ${t.to_party || t.from_party || "—"} &middot; ${fmtINR(t.amount)}</div>
+        <div style="color:var(--ink-faint); font-size:0.72rem;">Deleted ${t.deleted_at || ""}</div>
+      </div>
+      <button class="chip" data-restore-id="${t.id}">Restore</button>
+    </div>`).join("");
+  list.querySelectorAll("[data-restore-id]").forEach(btn => btn.addEventListener("click", async () => {
+    const id = btn.dataset.restoreId;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/admin/transactions/${id}/restore`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { console.error(data.error || "Restore failed"); btn.disabled = false; return; }
+      const idx = DELETED_TRANSACTIONS.findIndex(x => x.id == id);
+      const [t] = DELETED_TRANSACTIONS.splice(idx, 1);
+      t.deleted_at = null;
+      TRANSACTIONS.push(t);
+      updateDeletedBtn();
+      renderDeletedList();
+      renderTable();
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+    }
+  }));
 }
 
 function getFilteredRows() {
@@ -382,6 +434,8 @@ function attachRowHandlers() {
     document.getElementById("purpose-edit-area").hidden = true;
     document.getElementById("purpose-edit-btn").hidden = !IS_ADMIN;
     document.getElementById("purpose-edit-btn").dataset.id = t.id;
+    document.getElementById("delete-txn-btn").hidden = !IS_ADMIN;
+    document.getElementById("delete-txn-btn").dataset.id = t.id;
     document.getElementById("narration-text").textContent = t.bank_narration || "(no narration text)";
     document.getElementById("narration-lightbox").classList.add("visible");
   }));
@@ -505,6 +559,35 @@ document.getElementById("lightbox").addEventListener("click", () => {
 });
 
 if (IS_ADMIN) {
+  document.getElementById("delete-txn-btn").addEventListener("click", async () => {
+    const id = document.getElementById("delete-txn-btn").dataset.id;
+    const t = TRANSACTIONS.find(x => x.id == id);
+    if (!t) return;
+    if (!confirm(`Delete this transaction (${fmtDate(t.txn_date)}, ${fmtINR(t.amount)})? It can be restored later from "Deleted".`)) return;
+    try {
+      const res = await fetch(`/admin/transactions/${id}/delete`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { console.error(data.error || "Delete failed"); return; }
+      const idx = TRANSACTIONS.findIndex(x => x.id == id);
+      const [removed] = TRANSACTIONS.splice(idx, 1);
+      removed.deleted_at = new Date().toISOString();
+      DELETED_TRANSACTIONS.unshift(removed);
+      updateDeletedBtn();
+      document.getElementById("narration-lightbox").classList.remove("visible");
+      renderTable();
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  document.getElementById("deleted-btn").addEventListener("click", () => {
+    renderDeletedList();
+    document.getElementById("deleted-lightbox").classList.add("visible");
+  });
+  document.getElementById("deleted-lightbox").addEventListener("click", () => {
+    document.getElementById("deleted-lightbox").classList.remove("visible");
+  });
+
   const catSelect = document.querySelector('#add-txn-form [name="reporting_category"]');
   REPORTING_CATEGORIES.forEach(c => catSelect.add(new Option(c, c)));
   const statusSelect = document.querySelector('#add-txn-form [name="status"]');

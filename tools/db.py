@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     evidence_file       TEXT,
     evidence_source     TEXT CHECK (evidence_source IN ('matched', 'uploaded') OR evidence_source IS NULL),
     source_document     TEXT NOT NULL,
+    deleted_at          TEXT,
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -76,6 +77,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     evidence_file       TEXT,
     evidence_source     TEXT CHECK (evidence_source IN ('matched', 'uploaded') OR evidence_source IS NULL),
     source_document     TEXT NOT NULL,
+    deleted_at          TEXT,
     created_at          TEXT NOT NULL DEFAULT (NOW()::text),
     updated_at          TEXT NOT NULL DEFAULT (NOW()::text)
 );
@@ -132,10 +134,25 @@ def get_connection():
     return conn
 
 
+def _migrate_existing_tables(conn):
+    """CREATE TABLE IF NOT EXISTS above is a no-op against a database that
+    already has the transactions table from before deleted_at existed --
+    add it here so upgrading an existing deployment doesn't need a manual
+    step beyond re-running init_db()."""
+    if DATABASE_URL:
+        conn.execute("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS deleted_at TEXT")
+    else:
+        existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(transactions)")}
+        if "deleted_at" not in existing_cols:
+            conn.execute("ALTER TABLE transactions ADD COLUMN deleted_at TEXT")
+    conn.commit()
+
+
 def init_db():
     conn = get_connection()
     conn.executescript(POSTGRES_SCHEMA if DATABASE_URL else SQLITE_SCHEMA)
     conn.commit()
+    _migrate_existing_tables(conn)
     conn.close()
     print(f"Initialized {'hosted Postgres database' if DATABASE_URL else DB_PATH}")
 
