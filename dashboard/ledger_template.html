@@ -244,6 +244,31 @@ function proofCellHTML(t) {
   return `<span class="thumb-empty">—</span>`;
 }
 
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // stay under Vercel's serverless function payload limit (~4.5MB)
+
+function compressImage(file, maxDim = 2000, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Compression failed")), "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not read image")); };
+    img.src = url;
+  });
+}
+
 async function saveAdminEdit(id, fields) {
   try {
     const res = await fetch(`/admin/transactions/${id}`, {
@@ -418,8 +443,22 @@ function attachRowHandlers() {
     fileInput.accept = ".pdf,.jpg,.jpeg,.png";
     fileInput.addEventListener("change", async () => {
       if (!fileInput.files[0]) return;
+      let file = fileInput.files[0];
+      try {
+        if (file.type.startsWith("image/")) {
+          const compressed = await compressImage(file);
+          file = new File([compressed], "evidence.jpg", { type: "image/jpeg" });
+        }
+      } catch (err) {
+        alert("Could not process that image, please try a different file.");
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        alert(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please use a file under 4 MB -- PDFs can't be auto-compressed here, try a smaller scan.`);
+        return;
+      }
       const formData = new FormData();
-      formData.append("file", fileInput.files[0]);
+      formData.append("file", file);
       try {
         const res = await fetch(`/admin/transactions/${id}/evidence`, { method: "POST", body: formData });
         const data = await res.json();
