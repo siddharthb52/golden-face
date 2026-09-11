@@ -620,6 +620,15 @@ if (HAS_BACKEND) {
     if (q) parts.push(`Search: "${q}"`);
     const filterSummary = parts.length ? parts.join(" · ") : "All transactions";
 
+    const slugify = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const filenameParts = ["golden-face-ledger"];
+    if (activeDirection !== "all") filenameParts.push(activeDirection);
+    if (activeCategory !== "all") filenameParts.push(slugify(activeCategory));
+    if (startDate) filenameParts.push(startDate);
+    if (endDate) filenameParts.push(endDate);
+    if (q) filenameParts.push(`search-${slugify(q)}`);
+    const filename = `${filenameParts.join("_")}.pdf`;
+
     const btn = document.getElementById("export-pdf-btn");
     btn.disabled = true;
     const originalLabel = btn.textContent;
@@ -628,14 +637,14 @@ if (HAS_BACKEND) {
       const res = await fetch("/export/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, filter_summary: filterSummary }),
+        body: JSON.stringify({ ids, filter_summary: filterSummary, filename }),
       });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "golden-face-ledger.pdf";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();

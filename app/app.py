@@ -29,6 +29,7 @@ top-level `app` Flask instance) is auto-detected, no extra config needed.
 import functools
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -149,6 +150,17 @@ def _store_evidence(txn_id, file_storage):
     return key
 
 
+def _safe_pdf_filename(name):
+    """The client builds a filename reflecting the active filters (e.g.
+    golden-face-ledger_debit_2b-architecture_2026-01-01_2026-03-31.pdf) --
+    re-validated here since it lands in a response header (CRLF/quote
+    injection risk) rather than trusted as-is."""
+    name = re.sub(r"[^A-Za-z0-9_\-.]", "", name or "")[:150]
+    if not name:
+        return "golden-face-ledger.pdf"
+    return name if name.lower().endswith(".pdf") else f"{name}.pdf"
+
+
 def _fetch_full_image(key):
     """Same lookup /evidence/<id>/full does, reused for PDF appendix images."""
     try:
@@ -256,6 +268,7 @@ def export_pdf():
     payload = request.get_json(silent=True) or {}
     ids = [i for i in (payload.get("ids") or []) if isinstance(i, int)]
     filter_summary = (payload.get("filter_summary") or "All transactions").strip() or "All transactions"
+    filename = _safe_pdf_filename(payload.get("filename"))
     if not ids:
         return jsonify({"error": "No transactions to export."}), 400
 
@@ -274,7 +287,7 @@ def export_pdf():
     pdf_bytes = build_pdf(rows, filter_summary, _fetch_full_image)
     return Response(
         pdf_bytes, mimetype="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=golden-face-ledger.pdf"},
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
