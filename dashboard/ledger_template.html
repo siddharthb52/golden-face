@@ -93,12 +93,26 @@
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 50; cursor: zoom-out; }
   .lightbox.visible { display: flex; }
   .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+
+  /* header account area */
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .account-area { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+  .role-badge { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-muted); white-space: nowrap; }
+  .role-badge.admin { border-color: var(--gold); color: var(--gold); }
+  .logout-link { font-size: 0.78rem; color: var(--ink-muted); text-decoration: underline; }
+  .logout-link:hover { color: var(--ink); }
 </style>
 
 <main>
-  <div>
-    <h1 class="wordmark"><span class="golden">Golden</span> Face</h1>
-    <p class="subtitle">Sri Swarnamukhi Ashrama · Jan–Mar 2026 Ledger</p>
+  <div class="header-row">
+    <div>
+      <h1 class="wordmark"><span class="golden">Golden</span> Face</h1>
+      <p class="subtitle">Sri Swarnamukhi Ashrama · Jan–Mar 2026 Ledger</p>
+    </div>
+    <div class="account-area" id="account-area" hidden>
+      <span class="role-badge" id="role-badge"></span>
+      <a class="logout-link" href="/logout">Log out</a>
+    </div>
   </div>
 
   <section class="kpi-row" id="kpi-row"></section>
@@ -338,7 +352,13 @@ function renderFilters() {
     document.getElementById("add-txn-btn").hidden = false;
     document.getElementById("actions-header").hidden = false;
   }
-  if (HAS_BACKEND) document.getElementById("export-pdf-btn").hidden = false;
+  if (HAS_BACKEND) {
+    document.getElementById("export-pdf-btn").hidden = false;
+    const badge = document.getElementById("role-badge");
+    badge.textContent = IS_ADMIN ? "Admin" : "Viewer";
+    badge.classList.toggle("admin", IS_ADMIN);
+    document.getElementById("account-area").hidden = false;
+  }
 }
 
 function getFilteredRows() {
