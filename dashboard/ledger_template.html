@@ -624,8 +624,9 @@ if (HAS_BACKEND) {
     const filenameParts = ["golden-face-ledger"];
     if (activeDirection !== "all") filenameParts.push(activeDirection);
     if (activeCategory !== "all") filenameParts.push(slugify(activeCategory));
-    if (startDate) filenameParts.push(startDate);
-    if (endDate) filenameParts.push(endDate);
+    if (startDate && endDate) filenameParts.push(startDate, endDate);
+    else if (startDate) filenameParts.push(`from-${startDate}`);
+    else if (endDate) filenameParts.push(`through-${endDate}`);
     if (q) filenameParts.push(`search-${slugify(q)}`);
     const filename = `${filenameParts.join("_")}.pdf`;
 
